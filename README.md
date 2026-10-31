@@ -178,11 +178,12 @@ Open **http://localhost:5173** to access the dashboard.
 ### 3. Run Official Validator
 Verify the output files against the official StarterPack validator:
 ```bash
+# Replace STARTER_PACK with the organiser starter-pack folder.
 # Validate Baseline
-python C:\Users\aruna\Downloads\CrunchWeek_StarterPack\validator.py --data data/cit_public.json --schedule exports/schedule.json
+python STARTER_PACK/validator.py --data data/cit_public.json --schedule exports/schedule.json
 
 # Validate Disrupted
-python C:\Users\aruna\Downloads\CrunchWeek_StarterPack\validator.py --data data/cit_public.json --schedule exports/schedule_after.json --baseline exports/schedule.json --disruption C:\Users\aruna\Downloads\CrunchWeek_StarterPack\examples\sample_disruption.json
+python STARTER_PACK/validator.py --data data/cit_public.json --schedule exports/schedule_after.json --baseline exports/schedule.json --disruption STARTER_PACK/examples/sample_disruption.json
 ```
 
 ### 4. Run with Docker (single container)
