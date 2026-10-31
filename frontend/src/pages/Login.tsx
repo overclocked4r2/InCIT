@@ -19,7 +19,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
   const [loading, setLoading] = useState(false);
 
   const moveBackdrop = (event: React.PointerEvent<HTMLElement>) => {
-    if (event.pointerType !== 'mouse') return;
+    if (event.pointerType !== 'mouse' || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     const bounds = event.currentTarget.getBoundingClientRect();
     event.currentTarget.style.setProperty('--pointer-x', `${((event.clientX - bounds.left) / bounds.width) * 100}%`);
     event.currentTarget.style.setProperty('--pointer-y', `${((event.clientY - bounds.top) / bounds.height) * 100}%`);

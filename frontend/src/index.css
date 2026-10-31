@@ -106,6 +106,9 @@ body {
 }
 
 #root { min-height: 100dvh; display: flex; flex-direction: column; }
+.app-layer { position: relative; z-index: 1; min-height: 100dvh; flex: 1; }
+#bg3d { position: fixed; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
+#bg3d canvas { display: block; width: 100%; height: 100%; }
 
 /* ── Scrollbar ── */
 ::-webkit-scrollbar { width: 5px; height: 5px; }
@@ -155,8 +158,46 @@ body {
   background: var(--color-surface-1);
   border: 1px solid var(--color-border);
   border-radius: 14px;
-  box-shadow: 0 8px 24px rgba(15, 30, 48, 0.08);
-  transition: background-color .2s ease, border-color .2s ease, box-shadow .2s ease;
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--color-text-primary) 8%, transparent), inset 0 1px 0 color-mix(in srgb, var(--color-text-primary) 3%, transparent);
+  transition: background-color .2s ease, border-color .2s ease, box-shadow .24s ease;
+}
+.spatial-card {
+  transform-style: preserve-3d;
+  transform: perspective(1100px) rotateX(var(--card-tilt-x, 0deg)) rotateY(var(--card-tilt-y, 0deg)) translateZ(1px);
+}
+.spatial-stage {
+  background:
+    radial-gradient(ellipse at 92% 8%, color-mix(in srgb, var(--color-accent) 5%, transparent), transparent 35%),
+    radial-gradient(ellipse at 5% 76%, color-mix(in srgb, var(--color-info) 4%, transparent), transparent 32%),
+    linear-gradient(color-mix(in srgb, var(--color-border) 13%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--color-border) 13%, transparent) 1px, transparent 1px),
+    transparent;
+  background-size: auto, auto, 68px 68px, 68px 68px, auto;
+}
+.spatial-sidebar {
+  box-shadow: 14px 0 38px color-mix(in srgb, var(--color-text-primary) 7%, transparent);
+  transform: perspective(1400px) rotateY(0deg);
+  transform-origin: left center;
+}
+.spatial-sidebar nav a {
+  transform: perspective(700px) translateZ(0);
+  transition: transform .18s ease, color .18s ease, background-color .18s ease;
+}
+@media (hover: hover) and (pointer: fine) {
+  .glass:not(.spatial-card):hover {
+    transform: perspective(1200px) rotateX(.8deg) rotateY(-.8deg) translateZ(3px) translateY(-1px);
+    box-shadow: 0 16px 34px color-mix(in srgb, var(--color-text-primary) 11%, transparent);
+  }
+  .spatial-card:hover {
+    transform: perspective(1100px) rotateX(var(--card-tilt-x, 0deg)) rotateY(var(--card-tilt-y, 0deg)) translateZ(9px) translateY(-2px);
+    box-shadow: 0 24px 46px color-mix(in srgb, var(--color-text-primary) 15%, transparent), 0 6px 14px color-mix(in srgb, var(--color-accent) 8%, transparent);
+  }
+  .spatial-sidebar nav a:hover { transform: perspective(700px) translateZ(4px) translateX(2px); }
+  .slot-cell:hover {
+    transform: perspective(650px) translateZ(7px) scale(1.025);
+    z-index: 10;
+    box-shadow: 0 8px 18px color-mix(in srgb, var(--color-text-primary) 13%, transparent);
+  }
 }
 
 .appearance-control { position: relative; flex-shrink: 0; }
@@ -193,7 +234,14 @@ body {
   border: 1px solid var(--color-border);
   border-radius: 14px;
   background: var(--color-surface-1);
-  box-shadow: 0 18px 48px rgba(0, 0, 0, .24);
+  box-shadow: 0 24px 52px color-mix(in srgb, var(--color-text-primary) 20%, transparent), 0 4px 12px color-mix(in srgb, var(--color-accent) 10%, transparent);
+  transform: perspective(900px) rotateX(-1.25deg) translateZ(4px);
+  transform-origin: top right;
+}
+.spatial-dialog {
+  transform: perspective(1200px) rotateX(0deg) translateZ(8px);
+  transform-origin: top center;
+  box-shadow: 0 34px 90px color-mix(in srgb, var(--color-text-primary) 32%, transparent), 0 5px 16px color-mix(in srgb, var(--color-accent) 12%, transparent);
 }
 
 .appearance-label { margin: 0 0 8px 2px; color: var(--color-text-muted); font-size: 10px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
@@ -219,6 +267,16 @@ body {
 .appearance-selected { border-color: color-mix(in srgb, var(--color-accent) 55%, var(--color-border)); background: var(--color-accent-dim); color: var(--color-accent-hover); }
 .palette-swatch { width: 15px; height: 15px; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .12); }
 
+select { color-scheme: inherit; }
+select option, select optgroup {
+  background-color: var(--color-surface-1);
+  color: var(--color-text-primary);
+}
+select option:checked {
+  background-color: var(--color-accent);
+  color: var(--color-on-accent);
+}
+
 [data-theme='dark'] .glass {
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.14);
 }
@@ -233,7 +291,7 @@ body {
   background:
     radial-gradient(ellipse at 18% 18%, color-mix(in srgb, var(--color-accent) 15%, transparent), transparent 42%),
     radial-gradient(ellipse at 82% 82%, color-mix(in srgb, var(--color-info) 11%, transparent), transparent 38%),
-    var(--color-surface);
+    color-mix(in srgb, var(--color-surface) 70%, transparent);
 }
 .login-shell::before, .login-shell::after { position: absolute; z-index: -1; content: ''; pointer-events: none; }
 .login-shell::before {
@@ -412,11 +470,9 @@ button, input, select, textarea {
 
 /* ── Grid slot cell (timetable) ── */
 .slot-cell {
-  transition: all .15s ease;
-}
-.slot-cell:hover {
-  transform: scale(1.02);
-  z-index: 10;
+  transform: perspective(650px) translateZ(0);
+  transform-style: preserve-3d;
+  transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
 }
 
 /* ── Skeleton loader ── */
@@ -434,4 +490,5 @@ button, input, select, textarea {
     animation-iteration-count: 1 !important;
     transition-duration: .01ms !important;
   }
+  .spatial-card, .glass:hover, .slot-cell:hover { transform: none !important; }
 }

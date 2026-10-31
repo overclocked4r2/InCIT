@@ -163,7 +163,7 @@ export function Layout({ user, onLogout }: LayoutProps) {
   return (
     <div className="flex min-h-dvh">
       <aside
-        className={`fixed top-0 left-0 z-40 hidden h-dvh flex-col overflow-hidden bg-[var(--color-surface-1)] border-r border-[var(--color-border)] transition-[width] duration-200 ease-out lg:flex ${
+        className={`spatial-sidebar fixed top-0 left-0 z-40 hidden h-dvh flex-col overflow-hidden bg-[var(--color-surface-1)] border-r border-[var(--color-border)] transition-[width] duration-200 ease-out lg:flex ${
           sidebarOpen ? 'w-60' : 'w-16'
         }`}
       >
@@ -205,7 +205,7 @@ export function Layout({ user, onLogout }: LayoutProps) {
         </div>
       </aside>
 
-      <main className={`min-w-0 w-full transition-[margin,width] duration-200 ease-out ${sidebarOpen ? 'lg:ml-60 lg:w-[calc(100%-15rem)]' : 'lg:ml-16 lg:w-[calc(100%-4rem)]'}`}>
+      <main className={`spatial-stage min-w-0 w-full transition-[margin,width] duration-200 ease-out ${sidebarOpen ? 'lg:ml-60 lg:w-[calc(100%-15rem)]' : 'lg:ml-16 lg:w-[calc(100%-4rem)]'}`}>
         <header className="sticky top-0 z-30 h-14 border-b border-[var(--color-border)] bg-[var(--color-surface)]/80 backdrop-blur-xl flex items-center gap-2 px-3 sm:gap-3 sm:px-6">
           <h1 className="hidden sm:block shrink-0 text-sm font-semibold text-[var(--color-text-primary)] tracking-tight">
             {current?.label ?? 'InCIT'}

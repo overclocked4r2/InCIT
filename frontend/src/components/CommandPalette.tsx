@@ -47,7 +47,7 @@ export function CommandPalette({ open, onClose }: Props) {
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center pt-[12vh] px-4" onKeyDown={onKeyDown}>
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full max-w-xl rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] shadow-2xl overflow-hidden animate-fade-up">
+      <div className="spatial-dialog relative w-full max-w-xl rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] shadow-2xl overflow-hidden animate-fade-up">
         <div className="flex items-center gap-3 px-4 py-3 border-b border-[var(--color-border)]"><span className="text-[var(--color-text-muted)]">⌕</span><input ref={inputRef} value={query} onChange={e => setQuery(e.target.value)} placeholder="Search pages…" className="flex-1 bg-transparent text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:outline-none" /><kbd className="text-[10px] px-1.5 py-0.5 rounded border border-[var(--color-border)] text-[var(--color-text-muted)]">ESC</kbd></div>
         <div className="max-h-[52vh] overflow-y-auto py-2">
           {items.length === 0 && <div className="px-4 py-8 text-center text-sm text-[var(--color-text-muted)]">No matching pages</div>}

@@ -2,6 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import { App } from './App';
+import { Background3D } from './components/Background3D';
 import './index.css';
 
 try {
@@ -18,8 +19,11 @@ try {
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <BrowserRouter>
-      <App />
-    </BrowserRouter>
+    <Background3D />
+    <div className="app-layer">
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>
+    </div>
   </StrictMode>,
 );

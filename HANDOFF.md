@@ -43,6 +43,18 @@ service/account or an existing live URL.
   desktop layouts. Added a slow ambient color drift and a subtle cursor-following
   glow; touch screens get only ambient motion, and reduced-motion disables it.
   The existing demo login flow remains unchanged.
+- Added a shared spatial layer to the staff workspace: fine background grid and
+  pointer light, gentle card tilt/lift, raised timetable slots, and depth on
+  sidebar navigation and dialogs. Effects are mouse-only; reduced motion turns
+  off pointer response and transforms.
+- Fixed native select option colors for all palettes so dropdown text remains
+  legible in both themes. Added a deferred local Three.js wireframe background:
+  palette-aware, mouse-parallax, reduced-motion aware, hidden-tab paused,
+  resized with the viewport, and safely absent if WebGL cannot initialize.
+- Reduced the 3D background cost after a lag report: grouped shapes into three
+  instanced draw calls, lowered it to 24 fps desktop / 15 fps mobile, capped
+  the canvas at 1.0 / 0.75 device pixel ratio, reduced mobile shapes to six,
+  and removed full-workspace pointer-gradient repaints and per-move transforms.
 - Added regression coverage for Hinglish parsing, no reservation before
   confirmation, revalidation at submission, lunch spans, and group conflicts.
 
@@ -69,6 +81,14 @@ service/account or an existing live URL.
 - Verified the login glow follows pointer movement, mobile layout remains 390px
   wide without overflow, and `prefers-reduced-motion: reduce` disables ambient
   animation. Frontend production build passes.
+- Spatial UI checks: all seven staff routes remain 390px wide in phone
+  emulation; pointer movement updates card tilt and stage-light coordinates;
+  reduced-motion forces card transforms to `none`. Production build passes.
+- Manual booking select options report theme-aware foreground/background colors
+  in dark and light browser emulation. The mobile WebGL canvas initializes at
+  390×844 with no document overflow. The Three.js module is deferred; canvas backing size is
+  292×633 at 390×844 CSS pixels. Vite reports its 743KB minified (188KB gzip)
+  async chunk above the default 500KB warning threshold.
 
 ## Resume here
 

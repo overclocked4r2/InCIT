@@ -1,9 +1,28 @@
 import type { ReactNode } from 'react';
 
+function trackCardPointer(event: React.PointerEvent<HTMLDivElement>) {
+  if (event.pointerType !== 'mouse' || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const element = event.currentTarget;
+  const bounds = element.getBoundingClientRect();
+  const x = (event.clientX - bounds.left) / bounds.width;
+  const y = (event.clientY - bounds.top) / bounds.height;
+  const tiltX = (0.5 - y) * 5;
+  const tiltY = (x - 0.5) * 5;
+  element.style.setProperty('--card-tilt-x', `${tiltX}deg`);
+  element.style.setProperty('--card-tilt-y', `${tiltY}deg`);
+  element.style.transform = `perspective(1100px) rotateX(${tiltX}deg) rotateY(${tiltY}deg) translateZ(5px) translateY(-1px)`;
+}
+
+function resetCardPointer(event: React.PointerEvent<HTMLDivElement>) {
+  event.currentTarget.style.setProperty('--card-tilt-x', '0deg');
+  event.currentTarget.style.setProperty('--card-tilt-y', '0deg');
+  event.currentTarget.style.removeProperty('transform');
+}
+
 /* ── Card ── */
 export function Card({ children, className = '', onClick }: { children: ReactNode; className?: string; onClick?: () => void }) {
   return (
-    <div className={`glass min-w-0 p-5 ${className}`} onClick={onClick} role={onClick ? 'button' : undefined}>
+    <div className={`glass spatial-card min-w-0 p-5 ${className}`} onPointerMove={trackCardPointer} onPointerLeave={resetCardPointer} onClick={onClick} role={onClick ? 'button' : undefined}>
       {children}
     </div>
   );
@@ -35,7 +54,7 @@ export function StatCard({
     cyan: 'text-[var(--color-cyan)]',
   };
   return (
-    <div className="glass p-4 flex items-start gap-4">
+    <div className="glass spatial-card p-4 flex items-start gap-4" onPointerMove={trackCardPointer} onPointerLeave={resetCardPointer}>
       <div className={`w-10 h-10 rounded-lg ${bg[accent]} flex items-center justify-center shrink-0`}>
         <span className={`text-lg font-bold ${text[accent]}`}>{String(value).slice(0, 3)}</span>
       </div>
