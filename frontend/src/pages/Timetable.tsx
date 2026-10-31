@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { api } from '../api';
 import type { TimetableAssignment, TimetableResponse, Room, Faculty, StudentGroup } from '../types';
-import { Card, Button, Badge, Select, Spinner, EmptyState } from '../components/ui';
+import { Card, Button, Badge, SearchableSelect, Spinner, EmptyState } from '../components/ui';
 import { DAYS, PERIODS } from '../types';
 
 /* ── Color palette for session kinds ── */
@@ -170,29 +170,33 @@ export function TimetablePage({ role }: { role: string }) {
 
       {/* Filters */}
       <div className="flex flex-wrap gap-2">
-        <Select
+        <SearchableSelect
           value={filterDay}
           onChange={setFilterDay}
           placeholder="All Days"
-          options={DAYS.map(d => ({ value: d, label: d }))}
+          options={[{ value: '', label: 'All Days' }, ...DAYS.map(d => ({ value: d, label: d }))]}
+          className="w-full sm:w-auto sm:min-w-28"
         />
-        <Select
+        <SearchableSelect
           value={filterRoom}
           onChange={setFilterRoom}
           placeholder="All Rooms"
-          options={rooms.map(r => ({ value: r.id, label: `${r.name} (${r.capacity})` }))}
+          options={[{ value: '', label: 'All Rooms' }, ...rooms.map(r => ({ value: r.id, label: `${r.name} (${r.capacity})` }))]}
+          className="w-full sm:w-auto sm:min-w-48"
         />
-        <Select
+        <SearchableSelect
           value={filterFaculty}
           onChange={setFilterFaculty}
           placeholder="All Faculty"
-          options={faculty.map(f => ({ value: f.id, label: f.name }))}
+          options={[{ value: '', label: 'All Faculty' }, ...faculty.map(f => ({ value: f.id, label: f.name }))]}
+          className="w-full sm:w-auto sm:min-w-48"
         />
-        <Select
+        <SearchableSelect
           value={filterGroup}
           onChange={setFilterGroup}
           placeholder="All Groups"
-          options={groups.map(g => ({ value: g.id, label: g.name }))}
+          options={[{ value: '', label: 'All Groups' }, ...groups.map(g => ({ value: g.id, label: g.name }))]}
+          className="w-full sm:w-auto sm:min-w-40"
         />
         {(filterDay || filterRoom || filterFaculty || filterGroup) && (
           <Button variant="ghost" onClick={() => { setFilterDay(''); setFilterRoom(''); setFilterFaculty(''); setFilterGroup(''); }}>

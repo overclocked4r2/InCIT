@@ -3,9 +3,10 @@
 ## Current status
 
 This is the current continuation note. Read this and `handoff/STATE.md` before
-resuming. The product work is complete and verified. The owner deployed the
-app at https://incit.onrender.com; live health, login, role, mobile, dropdown,
-and WebGL checks passed. The final video/submission checklist remains.
+resuming. The owner deployed the app at https://incit.onrender.com; the earlier
+live health, login, role, mobile, dropdown, and WebGL checks passed. Latest UI
+polish is implemented locally and passes production build/backend tests, but
+has not been pushed or redeployed. The final video/submission checklist remains.
 
 ## Completed in this session
 
@@ -13,8 +14,7 @@ and WebGL checks passed. The final video/submission checklist remains.
   aliases. The deterministic parser now handles examples such as
   `Kal shaam ko seminar hall chahiye, 200 log, 2 ghante` and
   `Budhvaar shaam 6 se 8 baje auditorium chahiye, 80 log`.
-- Updated the booking page wording and examples to invite English, Hindi, and
-  Hinglish requests.
+- Updated booking page wording and examples for English and Hinglish requests.
 - Changed natural-language booking from immediate reservation to an editable
   suggestion. The user can change room, day, period, duration, attendance,
   purpose, equipment, and groups that must be free.
@@ -94,13 +94,28 @@ and WebGL checks passed. The final video/submission checklist remains.
   `/api/auth/me`. The deployed bundle contains the optimized instanced Three.js
   build; all seven staff routes fit 390px and manual select colors stay readable
   in dark and light themes.
+- Latest owner-requested polish: login starts blank (no seeded Admin credentials
+  in either field); timetable filters use a searchable themed picker; booking
+  copy/examples use English and Hinglish; removed the hackathon label from the
+  top bar; expanded sidebar toggle says “Collapse”; global cursor styling marks
+  enabled buttons, links, labels, selects, and role buttons as clickable.
+- Updated README, AI usage note, and demo script to match the public English /
+  Hinglish booking UX and Render demo URL. Backend Devanagari parsing remains
+  internally available, but the UI no longer advertises or suggests Hindi.
+- Latest checks: `frontend/npm run build` passed; `.venv\\Scripts\\python.exe
+  -m pytest -q` passed (82 tests); `git diff --check` passed. The Vite warning
+  for the deferred Three.js chunk (743 KB minified / 188 KB gzip) remains.
+- The computer-use browser runtime failed to initialize during visual QA, so
+  the new picker has not been interactively checked in this turn. Its layout is
+  full-width on narrow screens and the dropdown width is viewport-capped.
 
 ## Resume here
 
-1. Read `handoff/STATE.md` and inspect `git status`/`git diff`; this session's
+1. Read `handoff/STATE.md` and inspect `git status`/`git diff`; latest UI/docs
    changes are intentionally uncommitted.
-2. Deployment and live checks are complete at https://incit.onrender.com.
-   Finish the organizer video/submission checklist if requested.
+2. The live service still serves the previous UI until latest changes are pushed
+   and Render redeploys. The user asked for public-deployable changes, not an
+   explicit push/deploy action. Finish video/submission checklist if requested.
 3. Keep `validator.py` and all organiser starter-pack files unchanged. Never
    edit schedule exports by hand; regenerate them through the app.
 4. Gemini is optional and the current shell does not have `GEMINI_API_KEY`.

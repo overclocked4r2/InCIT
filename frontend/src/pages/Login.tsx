@@ -13,8 +13,8 @@ const WEEK_CELLS = [
 ];
 
 export function LoginPage({ onLogin }: LoginPageProps) {
-  const [username, setUsername] = useState('admin@incit.demo');
-  const [password, setPassword] = useState('admin123');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -102,13 +102,13 @@ export function LoginPage({ onLogin }: LoginPageProps) {
               <label className="login-label" htmlFor="login-username">Username</label>
               <div className="login-input-wrap">
                 <svg aria-hidden="true" viewBox="0 0 20 20" className="login-input-icon"><path d="M3.2 16.2c.6-2.5 2.8-3.8 6.8-3.8s6.2 1.3 6.8 3.8M10 10a3.2 3.2 0 1 0 0-6.4A3.2 3.2 0 0 0 10 10Z" /></svg>
-                <input id="login-username" type="text" autoComplete="username" required value={username} onChange={event => setUsername(event.target.value)} className="login-input" />
+                <input id="login-username" type="text" autoComplete="username" placeholder="name@institution.edu" required value={username} onChange={event => setUsername(event.target.value)} className="login-input" />
               </div>
 
               <label className="login-label" htmlFor="login-password">Password</label>
               <div className="login-input-wrap">
                 <svg aria-hidden="true" viewBox="0 0 20 20" className="login-input-icon"><rect x="3.5" y="8.5" width="13" height="9" rx="2" /><path d="M6.5 8.5V6a3.5 3.5 0 1 1 7 0v2.5M10 12v2" /></svg>
-                <input id="login-password" type="password" autoComplete="current-password" required value={password} onChange={event => setPassword(event.target.value)} className="login-input" />
+                <input id="login-password" type="password" autoComplete="current-password" placeholder="Enter your password" required value={password} onChange={event => setPassword(event.target.value)} className="login-input" />
               </div>
 
               <button disabled={loading} className="login-submit">

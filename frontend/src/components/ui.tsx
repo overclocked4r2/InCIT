@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 
 function trackCardPointer(event: React.PointerEvent<HTMLDivElement>) {
   if (event.pointerType !== 'mouse' || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
@@ -268,5 +268,103 @@ export function Select({
       {placeholder && <option value="">{placeholder}</option>}
       {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
     </select>
+  );
+}
+
+/* ── Searchable filter ── */
+export function SearchableSelect({
+  value, onChange, options, placeholder, className = '',
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  options: { value: string; label: string }[];
+  placeholder: string;
+  className?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const rootRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
+  const selectedLabel = options.find(option => option.value === value)?.label;
+  const visibleOptions = options.filter(option => option.label.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()));
+
+  useEffect(() => {
+    if (!open) return;
+    searchRef.current?.focus();
+    const closeOnOutside = (event: PointerEvent) => {
+      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setOpen(false);
+        setQuery('');
+        triggerRef.current?.focus();
+      }
+    };
+    document.addEventListener('pointerdown', closeOnOutside);
+    document.addEventListener('keydown', closeOnEscape);
+    return () => {
+      document.removeEventListener('pointerdown', closeOnOutside);
+      document.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [open]);
+
+  const choose = (nextValue: string) => {
+    onChange(nextValue);
+    setOpen(false);
+    setQuery('');
+    triggerRef.current?.focus();
+  };
+
+  return (
+    <div ref={rootRef} className={`relative min-w-0 ${className}`}>
+      <button
+        ref={triggerRef}
+        type="button"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        onClick={() => setOpen(current => !current)}
+        className="flex min-h-10 w-full items-center justify-between gap-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] px-3 py-2 text-left text-sm text-[var(--color-text-primary)] transition-colors hover:border-[var(--color-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/60"
+      >
+        <span className="min-w-0 truncate">{selectedLabel ?? placeholder}</span>
+        <span className="flex shrink-0 items-center gap-2 text-[var(--color-text-muted)]" aria-hidden="true">
+          <span className="text-xs">⌕</span><span className="text-[10px]">{open ? '⌃' : '⌄'}</span>
+        </span>
+      </button>
+      {open && (
+        <div className="absolute left-0 top-full z-50 mt-1 w-[min(20rem,calc(100vw-2rem))] overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] shadow-2xl">
+          <div className="border-b border-[var(--color-border)] p-2">
+            <div className="flex items-center gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] px-2.5 focus-within:ring-2 focus-within:ring-[var(--color-accent)]/60">
+              <span className="text-sm text-[var(--color-text-muted)]" aria-hidden="true">⌕</span>
+              <input
+                ref={searchRef}
+                type="search"
+                value={query}
+                onChange={event => setQuery(event.target.value)}
+                placeholder={`Search ${placeholder.replace(/^All /, '').toLowerCase()}…`}
+                aria-label={`Search ${placeholder.replace(/^All /, '').toLowerCase()}`}
+                className="h-9 min-w-0 flex-1 bg-transparent text-sm text-[var(--color-text-primary)] outline-none placeholder:text-[var(--color-text-muted)]"
+              />
+              {query && <button type="button" onClick={() => { setQuery(''); searchRef.current?.focus(); }} aria-label="Clear search" className="px-1 text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]">×</button>}
+            </div>
+          </div>
+          <div role="listbox" aria-label={placeholder} className="max-h-64 overflow-y-auto p-1">
+            {visibleOptions.length ? visibleOptions.map(option => (
+              <button
+                key={option.value}
+                type="button"
+                role="option"
+                aria-selected={option.value === value}
+                onClick={() => choose(option.value)}
+                className={`block min-h-9 w-full rounded-lg px-3 py-2 text-left text-sm transition-colors hover:bg-[var(--color-surface-3)] ${option.value === value ? 'bg-[var(--color-accent-dim)] font-medium text-[var(--color-accent-hover)]' : 'text-[var(--color-text-secondary)]'}`}
+              >
+                <span className="block truncate">{option.label}</span>
+              </button>
+            )) : <p className="px-3 py-4 text-center text-xs text-[var(--color-text-muted)]">No matches found</p>}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

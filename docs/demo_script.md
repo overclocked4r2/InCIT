@@ -81,15 +81,15 @@
 >
 > Only institute events may displace a regular class, and when they do, the displaced session is **moved, not dropped**. Result: **22 approved, 1 alternative offered, 2 rejected** — the two rejections are the cancelled requests — with **zero priority inversions**."
 
-### 2:30–3:10 — NL Booking (click the Hindi example)
+### 2:30–3:10 — NL Booking (click the English example)
 
-*Click the Devanagari example: “मुझे बुधवार को 60 छात्रों के लिए एक क्लासरूम चाहिए, पीरियड 5-6”.*
+*Click the English example: “Reserve a classroom for 60 students on Wednesday, periods 5-6”.*
 
-> "This is the part judges usually expect an LLM for. We deliberately do not use one. A deterministic bilingual parser extracts attendance, duration, day, period window, room type, equipment, and accessibility needs — in English or Hindi, including Devanagari.
+> "This is the part judges usually expect an LLM for. We deliberately do not use one. A deterministic parser extracts attendance, duration, day, period window, room type, equipment, and accessibility needs from English and Hinglish requests.
 >
 > This request becomes: **60 students, Wednesday, periods 5–6, classroom**. The engine checks the live timetable, finds **CR-205**, and approves it. No API key, no latency, no hallucination — and every parse is explainable and auditable."
 
-*If asked: the parser also handles romanised Hindi such as “kal dopahar 2 baje 50 logon ke liye seminar hall chahiye”.*
+*If asked: the parser also handles Hinglish such as “kal dopahar 2 baje 50 logon ke liye seminar hall chahiye”.*
 
 ### 3:10–4:05 — Disruptions
 
@@ -121,13 +121,13 @@
 | Backend offline | Switch to `exports/schedule.json` and the validator output already on screen. |
 | A booking is rejected live | Treat it as a feature: "the engine rejected it because the slot is genuinely occupied — here is the reason." |
 | Disruption re-solve fails | Show `exports/schedule_after.json`; it is the pre-computed disrupted schedule with the same 0-violation result. |
-| Hindi input does not parse | Use the English preset with explicit periods; note that the parser is deterministic and requires a day + duration. |
+| A request does not parse | Use the English preset with explicit periods; note that the parser is deterministic and requires a day + duration. |
 
 ---
 
 ## Lines to avoid
 
-- "Our AI figures it out." — There is no LLM in the parsing path; say **deterministic bilingual parser**.
+- "Our AI figures it out." — There is no LLM in the basic parsing path; say **deterministic English and Hinglish parser**.
 - "We assign invigilators." — The exam scheduler allocates **rooms and slots at half capacity**; faculty invigilation rosters are roadmap.
 - "Soft penalty zero." — The solver minimises its own soft subset; the official validator reports **203** (baseline) and **230** (disrupted). Quote those.
 - "It takes 15 seconds." — Say **roughly 25 seconds** unless you have just measured it.

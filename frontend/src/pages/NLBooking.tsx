@@ -7,7 +7,7 @@ import { ManualFormsPage } from './ManualForms';
 const EXAMPLES = [
   'Book a seminar hall for 80 students on Wednesday, periods 3-4, need projector',
   'I need a lab with 40 seats for Thursday morning, accessible room please',
-  'मुझे बुधवार को 60 छात्रों के लिए एक क्लासरूम चाहिए, पीरियड 5-6',
+  'Reserve a classroom for 60 students on Wednesday, periods 5-6',
   'Kal shaam ko seminar hall chahiye, 200 log, 2 ghante',
   'Budhvaar shaam 6 se 8 baje auditorium chahiye, 80 log',
   'Reserve lecture hall for 120 students, any day afternoon, needs projector and mic',
@@ -144,7 +144,7 @@ export function NLBookingPage() {
       <Card>
         <h2 className="text-lg font-bold tracking-tight">Natural Language Booking</h2>
         <p className="text-xs text-[var(--color-text-muted)] mt-1">
-          English, Hindi, or Hinglish mein apni room request likhein. We’ll turn it into an editable draft; availability and booking rules are checked by the system.
+          Write your room request in English or Hinglish. We’ll turn it into an editable draft; availability and booking rules are checked by the system.
         </p>
       </Card>
 
@@ -167,7 +167,7 @@ export function NLBookingPage() {
           <EmptyState
             icon="✎"
             title="Start a conversation"
-            sub="English, Hindi, ya Hinglish mein request likhein, ya upar example chunein"
+            sub="Write a request in English or Hinglish, or choose an example above."
           />
         ) : (
           messages.map((msg, i) => (

@@ -11,7 +11,7 @@ The important safety rule is simple: AI can help turn words into a draft, but on
 - Scores Spectra bookings by the dataset's priority rules and explains every rejection or alternative.
 - Lets Faculty and Department coordinators submit change proposals; an Admin must approve a proposal before it changes the timetable.
 - Provides timetable views by room, faculty, group, and day, including a phone-friendly read-only view.
-- Accepts English, Hindi, and Hinglish booking requests as editable drafts. A user reviews the room, time, and requirements before the app validates and reserves it. Gemini is optional and only fills drafts or phrases code-derived explanations.
+- Accepts English and Hinglish booking requests as editable drafts. A user reviews the room, time, and requirements before the app validates and reserves it. Gemini is optional and only fills drafts or phrases code-derived explanations.
 
 ## Architecture
 
@@ -135,7 +135,7 @@ The committed baseline export was last checked with 0 hard violations and a soft
 - This is a demo: state is kept in memory and resets when the server restarts.
 - Demo credentials are intentionally simple and are not suitable for a real deployment.
 - Gemini is optional. It never makes a validity, priority, or approval decision, and the app falls back to deterministic/manual paths if it is down.
-- There is no deployed public link yet.
+- Public demo: [incit.onrender.com](https://incit.onrender.com). Demo data is in memory and resets when the service restarts.
 - The app is designed around the supplied public dataset, not a production identity or database system.
 
 ## AI use and safety

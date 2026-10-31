@@ -93,6 +93,8 @@
 
 *, *::before, *::after { box-sizing: border-box; }
 
+button:not(:disabled), a[href], [role="button"], summary, select, label[for] { cursor: pointer; }
+
 html { scroll-behavior: smooth; }
 
 body {

@@ -198,9 +198,10 @@ export function Layout({ user, onLogout }: LayoutProps) {
             aria-label={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
             aria-expanded={sidebarOpen}
             title={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
-            className="mx-auto flex h-9 w-9 items-center justify-center rounded-lg text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-2)] transition-colors text-sm"
+            className={`mx-auto flex h-9 ${sidebarOpen ? 'w-full justify-center gap-2 border border-[var(--color-border)] bg-[var(--color-surface-2)] px-3 font-medium hover:border-[var(--color-accent)]' : 'w-9 justify-center'} items-center rounded-lg text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-3)] transition-colors text-sm`}
           >
             <span aria-hidden="true">{sidebarOpen ? '‹' : '›'}</span>
+            {sidebarOpen && <span>Collapse</span>}
           </button>
         </div>
       </aside>
@@ -272,7 +273,6 @@ export function Layout({ user, onLogout }: LayoutProps) {
               <span className="hidden sm:inline">Search or jump to</span>
               <kbd className="hidden sm:inline text-[10px] px-1.5 py-0.5 rounded border border-[var(--color-border)]">⌘K</kbd>
             </button>
-            <span className="hidden lg:inline text-[11px] text-[var(--color-text-muted)]">Zephyr Hackathon • CrunchWeek</span>
             <div className="flex min-w-0 shrink-0 items-center gap-2 text-xs text-[var(--color-text-muted)]">
               <span className="max-w-28 truncate sm:max-w-40">{user.name} · {user.role.replace('_', ' ')}</span>
               <button onClick={onLogout} className="shrink-0 rounded border border-[var(--color-border)] px-2 py-1 hover:text-[var(--color-text-primary)]">Sign out</button>

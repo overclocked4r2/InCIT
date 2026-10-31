@@ -3,10 +3,10 @@
 Keep this file short. Replace old text instead of adding to it.
 
 ## Current step
-**Step 12** (in progress). Deployed at https://incit.onrender.com; live health, four demo-role logins, mobile routes, dropdown contrast, and WebGL background verified. Final video/submission checklist remains.
+**Step 12** (in progress). Live demo is https://incit.onrender.com; latest owner-requested UI polish is local, build/test verified, and not yet pushed/redeployed. Final video/submission checklist remains.
 
 ## IN PROGRESS
-(Product improvements and live deployment checks are complete. Final video/submission checklist remains.)
+(Latest polish: blank login, searchable timetable filters, English/Hinglish booking copy, clean top bar, labeled sidebar collapse, pointer cursors. Finish deployment and video/submission checklist when requested.)
 
 ## Done
 - Removed the pre-approved student portal, its tests, screenshots, routes, UI, and README text.
@@ -46,6 +46,9 @@ Keep this file short. Replace old text instead of adding to it.
 - Fixed native select dropdown contrast in all palettes. Added deferred Three.js wireframe background with palette recoloring, pointer parallax, resize and visibility handling, WebGL fallback, and reduced-motion support. Mobile canvas verified at 390×844; build passes with an expected Vite warning for the 743KB (188KB gzip) async Three.js chunk.
 - Optimized after reported lag: 3 instanced draw calls instead of separate meshes; 24fps desktop/15fps mobile, DPR ≤1 desktop/0.75 mobile, 12/6 shapes, async idle loading, and removed expensive full-workspace pointer repaint and per-move transform transitions. Production build passes; 390×844 WebGL canvas verified at 292×633 backing resolution with no document overflow. Native select contrast confirmed in dark and light palettes.
 - Owner deployed to https://incit.onrender.com. Live `/health` and `/api/health` return published/ok, all four demo roles authenticate and match `/api/auth/me`, all staff routes fit at 390px, the optimized WebGL canvas initializes, and manual-booking native option colors are legible in both themes.
+- Latest UI polish (not deployed yet): removed login credential defaults, added a reusable searchable timetable filter picker, removed Hindi booking examples/copy (backend Devanagari parser remains), removed the hackathon header label, made expanded sidebar action say “Collapse”, and applied pointer cursors to clickable controls. README/AI usage/demo script now match English/Hinglish UI and current Render demo URL.
+- Latest verification: backend `pytest -q` **82 passed**; frontend `npm run build` passed; `git diff --check` passed. Build still has the known deferred Three.js chunk warning (743 KB minified / 188 KB gzip). New picker interactive visual QA could not run because computer-use runtime failed to initialize; mobile width is capped in CSS and controls stack at narrow sizes.
+- Do not claim these latest changes are live: no git push or Render deployment was performed. The current Render URL still serves the previous deployment until this branch is published and Render redeploys.
 
 ## Decided by the owner: follow the PS
 - The problem statement decides every product question. Do not ask the owner to choose features. If the PS is silent, pick the simplest option that satisfies it and note it under "Decisions made".
