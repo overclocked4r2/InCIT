@@ -1,12 +1,18 @@
 import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { api } from '../api';
+import type { DemoUser } from '../api';
 import { CommandPalette } from './CommandPalette';
 
 interface NavItem {
   to: string;
   label: string;
   icon: string;
+}
+
+interface LayoutProps {
+  user: DemoUser;
+  onLogout: () => void;
 }
 
 const ADMIN_NAV: NavItem[] = [
@@ -49,7 +55,7 @@ function NavSection({ title, items }: { title: string; items: NavItem[] }) {
   );
 }
 
-export function Layout() {
+export function Layout({ user, onLogout }: LayoutProps) {
   const location = useLocation();
   const [health, setHealth] = useState<string>('…');
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -117,24 +123,28 @@ export function Layout() {
       </aside>
 
       <main className={`min-w-0 transition-all duration-300 ${sidebarOpen ? 'ml-60 w-[calc(100%-15rem)]' : 'ml-16 w-[calc(100%-4rem)]'}`}>
-        <header className="sticky top-0 z-30 h-14 border-b border-[var(--color-border)] bg-[var(--color-surface)]/80 backdrop-blur-xl flex items-center gap-3 px-6">
-          <h1 className="text-sm font-semibold text-[var(--color-text-primary)] tracking-tight">
+        <header className="sticky top-0 z-30 h-14 border-b border-[var(--color-border)] bg-[var(--color-surface)]/80 backdrop-blur-xl flex items-center gap-2 px-3 sm:gap-3 sm:px-6">
+          <h1 className="hidden sm:block shrink-0 text-sm font-semibold text-[var(--color-text-primary)] tracking-tight">
             {current?.label ?? 'InCIT'}
           </h1>
           <span className="hidden md:inline text-[11px] text-[var(--color-text-muted)]">
             {today}
           </span>
 
-          <div className="ml-auto flex items-center gap-2">
+          <div className="ml-auto flex min-w-0 items-center gap-2 sm:gap-3">
             <button
               onClick={() => setPaletteOpen(true)}
-              className="flex items-center gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] px-3 py-1.5 text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-3)] transition-colors"
+              className="shrink-0 flex items-center gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] px-3 py-1.5 text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-3)] transition-colors"
             >
               <span>⌕</span>
               <span className="hidden sm:inline">Search or jump to</span>
               <kbd className="hidden sm:inline text-[10px] px-1.5 py-0.5 rounded border border-[var(--color-border)]">⌘K</kbd>
             </button>
             <span className="hidden lg:inline text-[11px] text-[var(--color-text-muted)]">Zephyr Hackathon • CrunchWeek</span>
+            <div className="flex min-w-0 shrink-0 items-center gap-2 text-xs text-[var(--color-text-muted)]">
+              <span className="max-w-28 truncate sm:max-w-40">{user.name} · {user.role.replace('_', ' ')}</span>
+              <button onClick={onLogout} className="shrink-0 rounded border border-[var(--color-border)] px-2 py-1 hover:text-[var(--color-text-primary)]">Sign out</button>
+            </div>
           </div>
         </header>
 

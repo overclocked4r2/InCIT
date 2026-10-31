@@ -5,10 +5,9 @@ requiring an external LLM. Uses regex patterns and keyword matching to
 extract: attendance, duration, day/time windows, room type preferences,
 equipment needs, and room name requests.
 
-Integration point: If an LLM API is configured (e.g., Gemini), the
-`parse_with_llm()` function can be called instead for higher accuracy.
-Currently, the deterministic parser handles the test cases from the
-official sample_requests.md.
+When a Gemini key is configured, a small wrapper can improve the editable
+draft. Its output is strictly validated and the deterministic parser remains
+the fallback, so an unavailable API never prevents manual booking.
 """
 from __future__ import annotations
 import re
@@ -157,6 +156,8 @@ def parse_booking_request(text: str, reference_date: datetime | None = None) -> 
         "follow_up": None,
         "raw_text": text,
         "confidence": 0.0,
+        "assumptions": [],
+        "manual_form_message": None,
     }
     
     confidence_parts = 0
@@ -205,6 +206,26 @@ def parse_booking_request(text: str, reference_date: datetime | None = None) -> 
     title = _extract_title(text)
     if title:
         result["title"] = title
+
+    result["assumptions"] = _extract_assumptions(translated, result, reference_date)
+
+    # A configured LLM can fill a richer draft, but it is never trusted to
+    # decide whether the booking is possible or to set request priority.
+    from .llm import parse_booking_draft_with_llm
+    llm_draft, fallback_message = parse_booking_draft_with_llm(text, reference_date)
+    if llm_draft:
+        for field in (
+            "attendance", "duration_periods", "windows", "room_types", "needs",
+            "requested_room", "mandatory_for_groups", "title",
+        ):
+            value = llm_draft[field]
+            if value not in (None, []):
+                result[field] = value
+        result["assumptions"] = list(dict.fromkeys(result["assumptions"] + llm_draft["assumptions"]))
+        result["llm_used"] = True
+    else:
+        result["manual_form_message"] = fallback_message
+        result["llm_used"] = False
     
     # Calculate confidence
     result["confidence"] = min(1.0, confidence_parts / 4)
@@ -281,10 +302,11 @@ def _extract_windows(text: str, ref_date: datetime) -> list[dict]:
     windows = []
     
     # Find days
-    found_days = []
+    found_days_with_positions = []
     for word, day_code in DAY_MAP.items():
-        if word in text:
-            found_days.append(day_code)
+        for match in re.finditer(rf"\b{re.escape(word)}\b", text):
+            found_days_with_positions.append((match.start(), day_code))
+    found_days = [day for _, day in sorted(found_days_with_positions)]
     
     # Handle "tomorrow"
     if "tomorrow" in text:
@@ -375,7 +397,7 @@ def _extract_windows(text: str, ref_date: datetime) -> list[dict]:
         elif "afternoon" in text or "after lunch" in text:
             from_period = 6  # 2 PM
             if to_period is None:
-                to_period = 9
+                to_period = 13
         elif "morning" in text:
             from_period = 1  # 8 AM
             if to_period is None:
@@ -403,6 +425,23 @@ def _extract_windows(text: str, ref_date: datetime) -> list[dict]:
             })
     
     return windows
+
+
+def _extract_assumptions(text: str, result: dict[str, Any], ref_date: datetime) -> list[str]:
+    """Make every useful inferred phrase visible in the draft."""
+    assumptions = []
+    if "tomorrow" in text:
+        tomorrow = ref_date + timedelta(days=1)
+        assumptions.append(f"‘kal’ was interpreted as {tomorrow.strftime('%A')} (tomorrow).")
+    if "evening" in text:
+        assumptions.append("‘shaam’/evening was interpreted as the P10–P13 evening window.")
+    if "after lunch" in text:
+        assumptions.append("‘after lunch’ was interpreted as P6 onward.")
+    if "only if free" in text and "otherwise" in text:
+        assumptions.append("The first time option is preferred; the option after ‘otherwise’ is the fallback.")
+    if result.get("requested_room") == "SH-2" and "accessible" in result.get("needs", []):
+        assumptions.append("SH-2 is not wheelchair accessible; SH-1 is offered as an alternative for the final validity check.")
+    return assumptions
 
 
 def _extract_room_types(text: str) -> list[str]:

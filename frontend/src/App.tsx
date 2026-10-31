@@ -45,7 +45,7 @@ export function App() {
 
   return (
     <Routes>
-      <Route element={<><div className="fixed right-4 top-3 z-50 flex items-center gap-2 text-xs text-[var(--color-text-muted)]"><span>{user.name} · {user.role.replace('_', ' ')}</span><button onClick={logout} className="rounded border border-[var(--color-border)] px-2 py-1">Sign out</button></div><Layout /></>}>
+      <Route element={<Layout user={user} onLogout={logout} />}>
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="exams" element={<ExamsPage />} />
         <Route path="dashboard" element={<DashboardPage />} />

@@ -30,6 +30,14 @@ export function NLBookingPage() {
     if (!t) return;
     setInput('');
 
+    if (t.length < 5) {
+      setMessages(prev => [...prev,
+        { role: 'user', content: t },
+        { role: 'assistant', content: 'Please describe your booking in at least 5 characters.', status: 'error' },
+      ]);
+      return;
+    }
+
     const userMsg: ChatMessage = { role: 'user', content: t };
     setMessages(prev => [...prev, userMsg]);
     setLoading(true);
@@ -63,9 +71,12 @@ export function NLBookingPage() {
       };
       setMessages(prev => [...prev, botMsg]);
     } catch (e: unknown) {
+      const message = (e as Error).message.includes('String should have at least 5 characters')
+        ? 'Please describe your booking in at least 5 characters.'
+        : (e as Error).message;
       setMessages(prev => [...prev, {
         role: 'assistant',
-        content: `Error: ${(e as Error).message}`,
+        content: `Error: ${message}`,
         status: 'error',
       }]);
     } finally {
