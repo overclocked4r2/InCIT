@@ -1,5 +1,6 @@
 .freebuff/
 .venv/
+.env
 .pytest_cache/
 .freebuff/
 __pycache__/

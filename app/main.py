@@ -1302,6 +1302,12 @@ def health():
     return {"status": "ok", "timetable_status": state.timetable_status}
 
 
+@app.get("/health")
+def deployment_health():
+    """Unauthenticated health check for deployment platforms."""
+    return health()
+
+
 # ============================================================
 # Built frontend (single-container / production mode)
 # ============================================================
