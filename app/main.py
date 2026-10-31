@@ -7,7 +7,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, Header, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -28,6 +28,7 @@ from .schemas import (
     RoomOut, FacultyOut, StudentGroupOut, SessionOut, CourseOut,
 )
 from .state import state
+from .auth import LoginRequest, login, public_user, require_action, user_from_authorization
 
 app = FastAPI(
     title="InCIT — Institutional Scheduling System",
@@ -42,6 +43,32 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+def _require_action(authorization: str | None, action: str):
+    """Translate the central demo-role check into a consistent API response."""
+    try:
+        return require_action(authorization, action)
+    except PermissionError as exc:
+        status = 401 if "sign in" in str(exc).lower() or "session" in str(exc).lower() else 403
+        raise HTTPException(status, str(exc))
+
+
+@app.post("/api/auth/login")
+def login_demo(req: LoginRequest):
+    result = login(req.username, req.password)
+    if result is None:
+        raise HTTPException(401, "Incorrect demo username or password.")
+    token, user = result
+    return {"token": token, "user": public_user(user)}
+
+
+@app.get("/api/auth/me")
+def current_user(authorization: str | None = Header(default=None)):
+    try:
+        return public_user(user_from_authorization(authorization))
+    except PermissionError as exc:
+        raise HTTPException(401, str(exc))
 
 def _bootstrap_from_export() -> bool:
     """Load the committed baseline schedule so the UI is useful on a cold start."""
@@ -246,8 +273,9 @@ def _reschedule_diff(
     return diff
 
 @app.post("/api/solver/generate", response_model=SolverResponse)
-def generate_timetable(req: SolverRequest | None = None):
+def generate_timetable(req: SolverRequest | None = None, authorization: str | None = Header(default=None)):
     """Run the OR-Tools solver to generate a timetable."""
+    _require_action(authorization, "manage_timetable")
     if req is None:
         req = SolverRequest()
     
@@ -441,8 +469,9 @@ def parse_natural_language(req: NLParseRequest):
 
 
 @app.post("/api/nl-book")
-def nl_book(req: NLParseRequest):
+def nl_book(req: NLParseRequest, authorization: str | None = Header(default=None)):
     """Parse NL text and attempt to create a booking against current timetable."""
+    user = _require_action(authorization, "request_booking")
     from .nl_parser import parse_booking_request
     parsed = parse_booking_request(req.text)
     
@@ -521,7 +550,7 @@ def nl_book(req: NLParseRequest):
             if pref_room and "accessible" in needs and not pref_room.get("accessible"):
                 access_warning = f"{preferred} is not wheelchair accessible. {room_id} ({room.get('name')}) offered instead."
         
-        state.add_audit("booking_created", "nl_booking", "NL-LIVE",
+        state.add_audit("booking_created", "nl_booking", "NL-LIVE", actor=user.username,
                        details={"room": room_id, "day": day, "start": start_p, "end": end_p})
         
         return {
@@ -539,7 +568,7 @@ def nl_book(req: NLParseRequest):
             "accessibility_warning": access_warning,
         }
     else:
-        state.add_audit("booking_rejected", "nl_booking", "NL-LIVE",
+        state.add_audit("booking_rejected", "nl_booking", "NL-LIVE", actor=user.username,
                        details={"reason": "No suitable venue available"})
         return {
             "status": "rejected",
@@ -553,8 +582,9 @@ def nl_book(req: NLParseRequest):
 # ============================================================
 
 @app.post("/api/reschedule", response_model=RescheduleResponse)
-def request_reschedule(req: RescheduleRequest):
+def request_reschedule(req: RescheduleRequest, authorization: str | None = Header(default=None)):
     """Request a session reschedule."""
+    user = _require_action(authorization, "request_reschedule")
     if not state.assignments:
         raise HTTPException(400, "No timetable available.")
     
@@ -619,6 +649,7 @@ def request_reschedule(req: RescheduleRequest):
     if conflicts:
         proposal = state.propose_reschedule(
             req.session_id, req.new_day, req.new_start_period, req.new_room_id, req.reason,
+            requested_by=user.username,
         )
         proposal["conflicts"] = conflicts
         state.decide_reschedule(
@@ -634,6 +665,7 @@ def request_reschedule(req: RescheduleRequest):
     
     proposal = state.propose_reschedule(
         req.session_id, req.new_day, req.new_start_period, req.new_room_id, req.reason,
+        requested_by=user.username,
     )
     
     return RescheduleResponse(
@@ -652,15 +684,16 @@ def reschedule_history():
 
 
 @app.post("/api/reschedule/{request_id}/decision")
-def decide_reschedule(request_id: str, req: ApprovalRequest):
-    """Approve or reject a pending proposal. Login-based identity arrives in Step 6."""
+def decide_reschedule(request_id: str, req: ApprovalRequest, authorization: str | None = Header(default=None)):
+    """Approve or reject a pending proposal as the signed-in Admin."""
+    user = _require_action(authorization, "approve_reschedule")
     try:
         proposal = state.decide_reschedule(
-            request_id, req.decision, actor="Admin (demo)", comments=req.comments,
+            request_id, req.decision, actor=user.username, comments=req.comments,
         )
     except KeyError as exc:
         raise HTTPException(404, str(exc))
-    except ValueError as exc:
+    except (PermissionError, ValueError) as exc:
         raise HTTPException(400, str(exc))
     except Exception as exc:
         # The state setter has already kept the timetable unchanged if the
@@ -679,8 +712,9 @@ def decide_reschedule(request_id: str, req: ApprovalRequest):
 # ============================================================
 
 @app.post("/api/disruption/apply")
-def apply_disruption(req: DisruptionRequest):
+def apply_disruption(req: DisruptionRequest, authorization: str | None = Header(default=None)):
     """Apply a disruption and regenerate the timetable."""
+    _require_action(authorization, "manage_disruption")
     from datetime import datetime
     
     disruption_dict = {"changes": [c.model_dump() for c in req.changes]}
@@ -694,8 +728,9 @@ def apply_disruption(req: DisruptionRequest):
 
 
 @app.post("/api/disruption/upload")
-def upload_disruption_file(path: str = Query(..., description="Path to disruption JSON file")):
+def upload_disruption_file(path: str = Query(..., description="Path to disruption JSON file"), authorization: str | None = Header(default=None)):
     """Load disruption from a JSON file."""
+    _require_action(authorization, "manage_disruption")
     try:
         with open(path, encoding="utf-8") as f:
             dis = json.load(f)
@@ -709,8 +744,9 @@ def upload_disruption_file(path: str = Query(..., description="Path to disruptio
 
 
 @app.delete("/api/disruption")
-def clear_disruption():
+def clear_disruption(authorization: str | None = Header(default=None)):
     """Clear any applied disruption."""
+    _require_action(authorization, "manage_disruption")
     state.disruption_data = None
     state.disruption_applied = False
     state.add_audit("disruption_cleared", "disruption", "all")
@@ -842,10 +878,12 @@ def get_audit_log(limit: int = 50, entity_type: str | None = None):
 # ============================================================
 
 @app.post("/api/reset")
-def reset_state():
+def reset_state(authorization: str | None = Header(default=None)):
     """Reset all application state back to the committed baseline schedule."""
+    user = _require_action(authorization, "reset_demo")
     state.reset()
     _bootstrap_from_export()
+    state.add_audit("demo_reset", "system", "demo", actor=user.username)
     return {"status": "reset", "timetable_status": state.timetable_status, "sessions": len(state.assignments)}
 
 

@@ -156,7 +156,7 @@ class AppState:
                        details={"old": old, "new": self.assignments[session_id]})
 
     def propose_reschedule(self, session_id: str, new_day: str, new_start: int,
-                           new_room: str, reason: str) -> dict:
+                           new_room: str, reason: str, *, requested_by: str = "system") -> dict:
         """Store a proposed move without changing the published timetable."""
         old = self.assignments[session_id].copy()
         proposal = {
@@ -164,6 +164,7 @@ class AppState:
             "session_id": session_id,
             "status": "pending",
             "reason": reason,
+            "requested_by": requested_by,
             "old": old,
             "new": {
                 "session_id": session_id,
@@ -186,6 +187,7 @@ class AppState:
         }
         self.reschedule_requests.append(proposal)
         self.add_audit("reschedule_proposed", "session", session_id,
+                       actor=requested_by,
                        details={"request_id": proposal["id"], "old": old, "new": proposal["new"], "reason": reason})
         return proposal
 
@@ -199,6 +201,8 @@ class AppState:
             raise ValueError(f"Reschedule proposal is already {proposal['status']}.")
         if decision not in {"approved", "rejected"}:
             raise ValueError("Decision must be 'approved' or 'rejected'.")
+        if decision == "approved" and proposal["requested_by"] == actor:
+            raise PermissionError("You cannot approve your own reschedule proposal.")
 
         if decision == "approved":
             # The assignments setter runs the deterministic validity gate before

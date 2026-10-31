@@ -195,6 +195,15 @@ Open **http://localhost:8000**. The API, dashboard, and Swagger docs (`/docs`) a
 
 ---
 
+## Demo accounts
+
+| Role | Username | Password |
+| --- | --- | --- |
+| Admin | `admin@incit.demo` | `admin123` |
+| Department coordinator | `coordinator@incit.demo` | `coord123` |
+| Faculty | `faculty@incit.demo` | `faculty123` |
+| Club representative | `club@incit.demo` | `club123` |
+
 ## 🎤 Judging Kit
 - [5-minute demo script](docs/demo_script.md) — pre-flight, timeline, exact clicks, recovery plan.
 

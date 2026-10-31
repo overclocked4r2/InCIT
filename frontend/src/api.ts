@@ -19,10 +19,19 @@ import type {
 } from './types';
 
 const BASE = '/api';
+let authToken: string | null = null;
+
+export function setAuthToken(token: string | null) {
+  authToken = token;
+}
 
 async function request<T>(endpoint: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${endpoint}`, {
-    headers: { 'Content-Type': 'application/json', ...(init?.headers as Record<string, string> ?? {}) },
+    headers: {
+      'Content-Type': 'application/json',
+      ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+      ...(init?.headers as Record<string, string> ?? {}),
+    },
     ...init,
   });
   if (!res.ok) {
@@ -40,6 +49,13 @@ export const api = {
   /* ── Health & Dashboard ── */
   health: () => request<{ status: string; timetable_status: string }>('/health'),
   dashboard: () => request<DashboardStats>('/dashboard'),
+
+  /* ── Demo login ── */
+  login: (username: string, password: string) =>
+    request<{ token: string; user: DemoUser }>('/auth/login', {
+      method: 'POST', body: JSON.stringify({ username, password }),
+    }),
+  me: () => request<DemoUser>('/auth/me'),
 
   /* ── Dataset catalog ── */
   datasetStatus: () => request<Record<string, unknown>>('/dataset/status'),
@@ -113,4 +129,10 @@ export const api = {
 
   /* ── System ── */
   reset: () => request<{ status: string }>('/reset', { method: 'POST' }),
+};
+
+export type DemoUser = {
+  username: string;
+  name: string;
+  role: string;
 };

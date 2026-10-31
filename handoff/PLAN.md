@@ -72,7 +72,7 @@ If a step is too big for your remaining tokens, do the first half, write exactly
 ## Step 6: Login, four roles, demo accounts, reset (MEDIUM)
 **Goal**: Admin, Department coordinator, Faculty and Club representative, with the rule that nobody approves their own request.
 **Read**: `app/main.py`, `app/state.py`, `app/config.py`, `frontend/src/App.tsx`, `frontend/src/api.ts`.
-**Edit**: those files plus new `app/auth.py`, `tests/`, a login page.
+**Edit**: those files plus new `app/auth.py`, `tests/`, a login page, `README.md`.
 **Do**: simple session or token login with four seeded accounts, role checks in one place, an Admin-only "Reset demo data" button and endpoint, and the credentials listed in README.md.
 **Done when**: tests show each role can do only its own actions and that a user cannot approve their own request; the reset restores the starting state.
 
