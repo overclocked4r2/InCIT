@@ -11,7 +11,7 @@ The important safety rule is simple: AI can help turn words into a draft, but on
 - Scores Spectra bookings by the dataset's priority rules and explains every rejection or alternative.
 - Lets Faculty and Department coordinators submit change proposals; an Admin must approve a proposal before it changes the timetable.
 - Provides timetable views by room, faculty, group, and day, including a phone-friendly read-only view.
-- Accepts English and Hinglish booking requests. Gemini is optional and only fills editable drafts or phrases code-derived explanations.
+- Accepts English, Hindi, and Hinglish booking requests as editable drafts. A user reviews the room, time, and requirements before the app validates and reserves it. Gemini is optional and only fills drafts or phrases code-derived explanations.
 
 ## Architecture
 
@@ -107,10 +107,10 @@ cd ..
 
 | Role | Username | Password | Main use |
 | --- | --- | --- | --- |
-| Admin | `admin@incit.demo` | `admin123` | Approve timetable proposals and reset demo data |
-| Department coordinator | `coordinator@incit.demo` | `coord123` | Generate timetables and submit changes |
-| Faculty | `faculty@incit.demo` | `faculty123` | Read timetables and request a class change |
-| Club representative | `club@incit.demo` | `club123` | Create room-booking requests |
+| Admin | `admin@incit.demo` | `admin123` | Approve timetable proposals, reset demo data, and request institute events |
+| Department coordinator | `coordinator@incit.demo` | `coord123` | Generate timetables, submit changes, and request department events |
+| Faculty | `faculty@incit.demo` | `faculty123` | Read timetables, request class changes, and request guest lectures |
+| Club representative | `club@incit.demo` | `club123` | Submit club venue requests |
 
 ## A quick demo path
 

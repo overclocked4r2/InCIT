@@ -56,6 +56,8 @@ def validate_manual_booking(
         return "Period, duration, and attendance must be whole numbers."
     if start < 1 or duration < 1 or start + duration - 1 > MAX_PERIOD:
         return f"Periods must fit between P1 and P{MAX_PERIOD}."
+    if start <= 5 < start + duration - 1:
+        return "A booking cannot span the lunch break between P5 and P6."
     if attendance < 1:
         return "Attendance must be at least one person."
     if not str(request.get("purpose", "")).strip():
@@ -77,20 +79,28 @@ def validate_manual_booking(
             return f"Room {room_id} is unavailable on {day} during the requested period."
 
     sessions = {session["id"]: session for session in data["sessions"]}
+    mandatory_groups = set(request.get("mandatory_for_groups", []))
     for session_id, (session_day, session_start, session_room) in timetable_assignments.items():
         session = sessions.get(session_id)
-        if session is None or session_room != room_id or session_day != day:
+        if session is None or session_day != day:
             continue
         occupied = set(range(session_start, session_start + session["duration"]))
-        if periods & occupied:
+        if session_room == room_id and periods & occupied:
             return f"Room {room_id} clashes with scheduled session {session_id} on {day}."
+        if mandatory_groups.intersection(session.get("groups", [])) and periods & occupied:
+            return f"Mandatory group {sorted(mandatory_groups.intersection(session.get('groups', [])))[0]} has session {session_id} on {day}."
 
     for booking in existing_bookings or []:
         if booking.get("status") not in ("approved", "alternative_offered"):
             continue
-        if booking.get("room_id") != room_id or booking.get("day") != day:
+        if booking.get("day") != day:
             continue
         occupied = set(range(booking["start_period"], booking["end_period"] + 1))
+        if mandatory_groups.intersection(booking.get("mandatory_for_groups", [])) and periods & occupied:
+            group = sorted(mandatory_groups.intersection(booking.get("mandatory_for_groups", [])))[0]
+            return f"Mandatory group {group} has booking {booking['request_id']} on {day}."
+        if booking.get("room_id") != room_id:
+            continue
         if periods & occupied:
             return f"Room {room_id} clashes with booking {booking['request_id']} on {day}."
 
@@ -321,6 +331,8 @@ def _slot_available(
     room_busy: dict, room_unavail: dict, mandatory_groups: list, group_occ: dict,
     session_ids: set[str], allow_session_displacement: bool,
 ) -> bool:
+    if start_p <= 5 and end_p >= 6:
+        return False
     for p in range(start_p, end_p + 1):
         occupied_by = room_busy.get((room_id, day, p), [])
         if occupied_by and (not allow_session_displacement or any(occ not in session_ids for occ in occupied_by)):

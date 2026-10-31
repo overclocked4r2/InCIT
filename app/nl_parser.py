@@ -24,8 +24,11 @@ DAY_MAP = {
     "friday": "FRI", "fri": "FRI",
     "saturday": "SAT", "sat": "SAT",
     # Hindi (romanised)
-    "somvar": "MON", "mangalvar": "TUE", "budhvar": "WED",
-    "guruvar": "THU", "shukravar": "FRI",
+    "somvar": "MON", "somvaar": "MON", "somwar": "MON",
+    "mangalvar": "TUE", "mangalvaar": "TUE", "mangalwar": "TUE",
+    "budhvar": "WED", "budhvaar": "WED", "budhwar": "WED",
+    "guruvar": "THU", "guruvaar": "THU", "guruwar": "THU",
+    "shukravar": "FRI", "shukravaar": "FRI", "shukrawar": "FRI",
 }
 
 # Time to period mapping (18:00 = P10, etc.)
@@ -67,13 +70,24 @@ HINDI_MAP = {
     "kal": "tomorrow",
     "aaj": "today",
     "shaam": "evening",
+    "sham": "evening",
     "subah": "morning",
     "dopahar": "afternoon",
+    "dopehar": "afternoon",
     "log": "people",
+    "logo": "people",
+    "logon": "people",
     "ghante": "hours",
     "ghanta": "hour",
     "baje": "o'clock",
+    "vajey": "o'clock",
+    "vaje": "o'clock",
     "chahiye": "need",
+    "chaahiye": "need",
+    "chaiye": "need",
+    "ke liye": "for",
+    "ko": "",
+    "se": "to",
     # Devanagari — days
     "सोमवार": "monday",
     "मंगलवार": "tuesday",
@@ -142,7 +156,16 @@ def parse_booking_request(text: str, reference_date: datetime | None = None) -> 
     # Translate Hindi words (longest keys first so "पीरियड्स" is not clipped)
     translated = text_lower
     for hindi in sorted(HINDI_MAP, key=len, reverse=True):
-        translated = translated.replace(hindi, HINDI_MAP[hindi])
+        replacement = HINDI_MAP[hindi]
+        if any("\u0900" <= char <= "\u097f" for char in hindi):
+            translated = translated.replace(hindi, replacement)
+        else:
+            translated = re.sub(
+                rf"(?<!\w){re.escape(hindi)}(?!\w)",
+                replacement,
+                translated,
+                flags=re.IGNORECASE,
+            )
     
     result: dict[str, Any] = {
         "attendance": None,
@@ -333,6 +356,7 @@ def _extract_windows(text: str, ref_date: datetime) -> list[dict]:
     # Find time ranges
     from_period = None
     to_period = None
+    duration = _extract_duration(text)
 
     # Pattern: explicit period range "periods 3-4" / "P3-P4"
     m = re.search(r"(?:periods?|p)\s*(\d{1,2})\s*(?:-|–|to)\s*(?:p)?\s*(\d{1,2})\b", text)
@@ -367,6 +391,23 @@ def _extract_windows(text: str, ref_date: datetime) -> list[dict]:
         to_period = HOUR_TO_PERIOD.get(end_h)
         if to_period:
             to_period -= 1  # end is inclusive, so 8pm = P12 means to_period = 11
+
+    # Romanised Hinglish commonly writes a range as "6 se 8 baje". The
+    # translator turns "se" into "to" and "baje" into "o'clock". Keep the
+    # range inclusive in the same way as the English time-range parser.
+    if from_period is None:
+        m = re.search(r"(\d{1,2})\s*(?:to|-)\s*(\d{1,2})\s*(?:o'clock)?", text)
+        if m:
+            start_h, end_h = int(m.group(1)), int(m.group(2))
+            if "evening" in text or "afternoon" in text:
+                if start_h < 12:
+                    start_h += 12
+                if end_h < 12:
+                    end_h += 12
+            from_period = HOUR_TO_PERIOD.get(start_h)
+            to_period = HOUR_TO_PERIOD.get(end_h)
+            if to_period:
+                to_period -= 1
     
     # Pattern: "at X pm" (single time)
     if from_period is None:
@@ -393,18 +434,17 @@ def _extract_windows(text: str, ref_date: datetime) -> list[dict]:
         if "evening" in text:
             from_period = 10  # 6 PM
             if to_period is None:
-                to_period = 13
+                to_period = from_period + duration - 1 if duration else 13
         elif "afternoon" in text or "after lunch" in text:
             from_period = 6  # 2 PM
             if to_period is None:
-                to_period = 13
+                to_period = from_period + duration - 1 if duration else 13
         elif "morning" in text:
             from_period = 1  # 8 AM
             if to_period is None:
-                to_period = 5
+                to_period = from_period + duration - 1 if duration else 5
     
     # Calculate to_period from duration if we have from_period but not to_period
-    duration = _extract_duration(text)
     if from_period and to_period is None and duration:
         to_period = from_period + duration - 1
     

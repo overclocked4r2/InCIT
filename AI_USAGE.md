@@ -3,7 +3,7 @@
 ## Product AI or model APIs
 
 If `GEMINI_API_KEY` is configured, InCIT can use the Gemini API to turn an
-English or Hinglish request into an editable booking draft, turn a faculty
+English, Hindi, or Hinglish request into an editable booking draft, turn a faculty
 request into an editable timetable-change draft, and phrase explanations from
 facts already produced by code. The prompts are in `prompts/`; the small API
 wrapper and strict output schemas are in `app/llm.py`. With no key or an API

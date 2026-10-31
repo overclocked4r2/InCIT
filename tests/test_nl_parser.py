@@ -55,3 +55,30 @@ def test_any_day_request_expands_to_teaching_week():
     assert [w["day"] for w in result["windows"]] == ["MON", "TUE", "WED", "THU", "FRI"]
     assert all(w["from_period"] == 6 for w in result["windows"])
     assert result["needs"] == ["projector", "pa_system"]
+
+
+def test_romanised_hinglish_tomorrow_evening_request():
+    from datetime import datetime
+
+    result = parse_booking_request(
+        "Kal shaam ko seminar hall chahiye, 200 log, 2 ghante",
+        reference_date=datetime(2026, 11, 2),  # Monday; kal is Tuesday.
+    )
+
+    assert result["attendance"] == 200
+    assert result["duration_periods"] == 2
+    assert result["windows"] == [{"day": "TUE", "from_period": 10, "to_period": 11}]
+    assert result["room_types"] == ["seminar_hall"]
+    assert result["follow_up"] is None
+    assert any("tomorrow" in item for item in result["assumptions"])
+
+
+def test_romanised_hinglish_time_range_and_day_alias():
+    result = parse_booking_request(
+        "Budhvaar shaam 6 se 8 baje auditorium chahiye, 80 log"
+    )
+
+    assert result["attendance"] == 80
+    assert result["duration_periods"] == 2
+    assert result["windows"] == [{"day": "WED", "from_period": 10, "to_period": 11}]
+    assert result["room_types"] == ["auditorium"]

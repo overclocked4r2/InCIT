@@ -10,6 +10,7 @@ import type {
   FestWeekResponse,
   NLParseResponse,
   NLBookResponse,
+  NLBookingSubmission,
   RescheduleRequest,
   RescheduleHistoryEntry,
   DisruptionChange,
@@ -128,6 +129,8 @@ export const api = {
     request<NLParseResponse>('/nl-parse', { method: 'POST', body: JSON.stringify({ text }) }),
   nlBook: (text: string) =>
     request<NLBookResponse>('/nl-book', { method: 'POST', body: JSON.stringify({ text }) }),
+  submitNlBooking: (draft: NLBookingSubmission) =>
+    request<{ status: string; message: string; booking?: NLBookResponse['booking'] & { booking_id?: string } }>('/nl-book/submit', { method: 'POST', body: JSON.stringify(draft) }),
   facultyChange: (text: string) =>
     request<FacultyChangeResponse>('/faculty-change', { method: 'POST', body: JSON.stringify({ text }) }),
   explainClass: (sessionId: string) => request<ExplanationResponse>(`/explain/class/${encodeURIComponent(sessionId)}`),

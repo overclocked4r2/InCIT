@@ -90,7 +90,7 @@ export function ManualFormsPage() {
     <div className="space-y-5">
       <Card>
         <h2 className="text-lg font-bold tracking-tight">Manual booking</h2>
-        <p className="text-xs text-[var(--color-text-muted)] mt-1">This form uses InCIT’s own checks. It does not use an LLM.</p>
+        <p className="text-xs text-[var(--color-text-muted)] mt-1">This form reserves the room after InCIT’s deterministic checks pass. It does not use an LLM.</p>
         <form className="grid sm:grid-cols-2 gap-3 mt-4" onSubmit={submitBooking}>
           <label className="text-sm">Room
             <select required value={booking.room_id} onChange={e => setBooking({ ...booking, room_id: e.target.value })} className="form-input mt-1 w-full">
@@ -118,7 +118,7 @@ export function ManualFormsPage() {
           <label className="text-sm sm:col-span-2">Purpose
             <input required value={booking.purpose} onChange={e => setBooking({ ...booking, purpose: e.target.value })} className="form-input mt-1 w-full" placeholder="Guest lecture" />
           </label>
-          <div className="sm:col-span-2"><button type="submit" disabled={loading} className="btn-primary disabled:opacity-60">{loading ? 'Checking…' : 'Check booking'}</button></div>
+          <div className="sm:col-span-2"><button type="submit" disabled={loading} className="btn-primary disabled:opacity-60">{loading ? 'Validating…' : 'Validate and reserve'}</button></div>
         </form>
         {bookingMessage && <p className="mt-3 text-sm"><Badge variant={bookingMessage.status === 'approved' ? 'success' : bookingMessage.status === 'not_allowed' ? 'info' : 'danger'}>{bookingMessage.status.replace('_', ' ')}</Badge> <span className="ml-2">{bookingMessage.text}</span></p>}
       </Card>

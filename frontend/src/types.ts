@@ -150,10 +150,21 @@ export interface NLBookResponse {
     start_period: number;
     end_period: number;
   };
-  follow_up?: string;
   message?: string;
+  follow_up?: string;
   accessibility_warning?: string | null;
   mode?: 'ai' | 'basic';
+}
+
+export interface NLBookingSubmission {
+  room_id: string;
+  day: string;
+  start_period: number;
+  duration_periods: number;
+  attendance: number;
+  purpose: string;
+  needs: string[];
+  mandatory_for_groups: string[];
 }
 
 /* Reschedule */

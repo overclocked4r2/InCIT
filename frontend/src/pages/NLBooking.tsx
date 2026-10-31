@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { api } from '../api';
-import type { NLBookResponse } from '../types';
+import type { NLBookResponse, NLBookingSubmission } from '../types';
 import { Card, Button, Badge, EmptyState } from '../components/ui';
 import { ManualFormsPage } from './ManualForms';
 
@@ -8,6 +8,8 @@ const EXAMPLES = [
   'Book a seminar hall for 80 students on Wednesday, periods 3-4, need projector',
   'I need a lab with 40 seats for Thursday morning, accessible room please',
   'मुझे बुधवार को 60 छात्रों के लिए एक क्लासरूम चाहिए, पीरियड 5-6',
+  'Kal shaam ko seminar hall chahiye, 200 log, 2 ghante',
+  'Budhvaar shaam 6 se 8 baje auditorium chahiye, 80 log',
   'Reserve lecture hall for 120 students, any day afternoon, needs projector and mic',
   'Small room for 20 people, Friday period 1, tutorial session',
 ];
@@ -19,6 +21,7 @@ interface ChatMessage {
   parsed?: NLBookResponse['parsed'];
   status?: string;
   mode?: NLBookResponse['mode'];
+  draft?: NLBookingSubmission;
 }
 
 export function NLBookingPage() {
@@ -41,6 +44,8 @@ export function NLBookingPage() {
       let content = '';
       if (res.status === 'assistant') {
         content = res.message ?? 'How can I help with your room booking?';
+      } else if (res.status === 'draft_ready') {
+        content = `Suggested slot: ${res.booking?.room_name} (${res.booking?.room_id}), ${res.booking?.day} P${res.booking?.start_period}–P${res.booking?.end_period}. ${res.message ?? 'Review and edit the details below, then submit to reserve.'}`;
       } else if (res.status === 'approved') {
         content = `✓ Booking approved!\nRoom: ${res.booking?.room_name} (${res.booking?.room_id})\nDay: ${res.booking?.day}, Periods ${res.booking?.start_period}–${res.booking?.end_period}\nCapacity: ${res.booking?.room_capacity}`;
       } else if (res.status === 'alternative_offered') {
@@ -64,6 +69,16 @@ export function NLBookingPage() {
         parsed: res.parsed,
         status: res.status,
         mode: res.mode,
+        draft: res.status === 'draft_ready' && res.booking ? {
+          room_id: res.booking.room_id,
+          day: res.booking.day,
+          start_period: res.booking.start_period,
+          duration_periods: res.booking.end_period - res.booking.start_period + 1,
+          attendance: res.parsed?.attendance ?? 1,
+          purpose: res.parsed?.title ?? 'Room booking',
+          needs: res.parsed?.needs ?? [],
+          mandatory_for_groups: res.parsed?.mandatory_for_groups ?? [],
+        } : undefined,
       };
       setMessages(prev => [...prev, botMsg]);
     } catch (e: unknown) {
@@ -77,12 +92,44 @@ export function NLBookingPage() {
     }
   };
 
+  const updateDraft = (messageIndex: number, key: keyof NLBookingSubmission, value: string | number | string[]) => {
+    setMessages(previous => previous.map((message, index) => {
+      if (index !== messageIndex || !message.draft) return message;
+      return { ...message, draft: { ...message.draft, [key]: value } };
+    }));
+  };
+
+  const confirmDraft = async (messageIndex: number) => {
+    const draft = messages[messageIndex]?.draft;
+    if (!draft) return;
+    setLoading(true);
+    try {
+      const result = await api.submitNlBooking(draft);
+      setMessages(previous => previous.map((message, index) => index !== messageIndex ? message : {
+        ...message,
+        status: result.status,
+        content: result.status === 'approved'
+          ? `✓ Booking reserved. ${result.booking?.room_name ?? draft.room_id} (${result.booking?.room_id ?? draft.room_id}), ${draft.day} P${draft.start_period}–P${draft.start_period + draft.duration_periods - 1}.`
+          : result.message,
+        booking: result.booking ?? message.booking,
+        draft: result.status === 'approved' ? undefined : message.draft,
+      }));
+    } catch (error) {
+      setMessages(previous => previous.map((message, index) => index !== messageIndex ? message : {
+        ...message, status: 'error', content: (error as Error).message,
+      }));
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const statusBadge = (s?: string) => {
     if (!s) return null;
     const map: Record<string, 'success' | 'warning' | 'danger' | 'info'> = {
       approved: 'success',
       alternative_offered: 'warning',
       needs_clarification: 'info',
+      draft_ready: 'info',
       assistant: 'info',
       rejected: 'danger',
       no_timetable: 'warning',
@@ -97,7 +144,7 @@ export function NLBookingPage() {
       <Card>
         <h2 className="text-lg font-bold tracking-tight">Natural Language Booking</h2>
         <p className="text-xs text-[var(--color-text-muted)] mt-1">
-          Describe your room booking in English or Hindi. The system will parse your request, find available rooms, and confirm the booking.
+          English, Hindi, or Hinglish mein apni room request likhein. We’ll turn it into an editable draft; availability and booking rules are checked by the system.
         </p>
       </Card>
 
@@ -120,7 +167,7 @@ export function NLBookingPage() {
           <EmptyState
             icon="✎"
             title="Start a conversation"
-            sub="Type a booking request below or click an example above"
+            sub="English, Hindi, ya Hinglish mein request likhein, ya upar example chunein"
           />
         ) : (
           messages.map((msg, i) => (
@@ -149,6 +196,37 @@ export function NLBookingPage() {
                     {msg.parsed.confidence > 0 && <div>Confidence: {Math.round(msg.parsed.confidence * 100)}%</div>}
                   </div>
                 )}
+                {msg.draft && (
+                  <form className="mt-3 grid grid-cols-2 gap-2 border-t border-[var(--color-border)] pt-3 text-xs" onSubmit={event => { event.preventDefault(); void confirmDraft(i); }}>
+                    <label className="min-w-0">Room ID
+                      <input required value={msg.draft.room_id} onChange={event => updateDraft(i, 'room_id', event.target.value.toUpperCase())} className="form-input mt-1 w-full" aria-label="Booking room ID" />
+                    </label>
+                    <label>Day
+                      <select value={msg.draft.day} onChange={event => updateDraft(i, 'day', event.target.value)} className="form-input mt-1 w-full">
+                        {['MON', 'TUE', 'WED', 'THU', 'FRI'].map(day => <option key={day}>{day}</option>)}
+                      </select>
+                    </label>
+                    <label>Start period
+                      <input required type="number" min="1" max="13" value={msg.draft.start_period} onChange={event => updateDraft(i, 'start_period', Number(event.target.value))} className="form-input mt-1 w-full" />
+                    </label>
+                    <label>Duration
+                      <input required type="number" min="1" max="13" value={msg.draft.duration_periods} onChange={event => updateDraft(i, 'duration_periods', Number(event.target.value))} className="form-input mt-1 w-full" />
+                    </label>
+                    <label>Attendance
+                      <input required type="number" min="1" value={msg.draft.attendance} onChange={event => updateDraft(i, 'attendance', Number(event.target.value))} className="form-input mt-1 w-full" />
+                    </label>
+                    <label>Purpose
+                      <input required value={msg.draft.purpose} onChange={event => updateDraft(i, 'purpose', event.target.value)} className="form-input mt-1 w-full" />
+                    </label>
+                    <label className="col-span-2">Needs (comma separated)
+                      <input value={msg.draft.needs.join(', ')} onChange={event => updateDraft(i, 'needs', event.target.value.split(',').map(item => item.trim()).filter(Boolean))} className="form-input mt-1 w-full" />
+                    </label>
+                    <label className="col-span-2">Groups that must be free (comma separated)
+                      <input value={msg.draft.mandatory_for_groups.join(', ')} onChange={event => updateDraft(i, 'mandatory_for_groups', event.target.value.split(',').map(item => item.trim()).filter(Boolean))} className="form-input mt-1 w-full" placeholder="Y1-A, CSE-2" />
+                    </label>
+                    <Button disabled={loading} loading={loading} className="col-span-2">Confirm and reserve</Button>
+                  </form>
+                )}
               </div>
             </div>
           ))
@@ -173,7 +251,7 @@ export function NLBookingPage() {
           value={input}
           onChange={e => setInput(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && !loading && submit()}
-          placeholder="Describe your booking in English or Hindi…"
+          placeholder="Example: Kal shaam 6 baje seminar hall chahiye, 80 log…"
           className="flex-1 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-xl px-4 py-3 text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)] focus:border-transparent transition-all"
         />
         <Button onClick={() => submit()} disabled={!input.trim() || loading} loading={loading}>

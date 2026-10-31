@@ -16,7 +16,7 @@ from fastapi.staticfiles import StaticFiles
 from .config import CORS_ORIGINS, TEAM_NAME, DATASET_PATH, PROJECT_ROOT
 from .schemas import (
     SolverRequest, SolverResponse, TimetableAssignment,
-    NLParseRequest, NLParseResponse,
+    NLParseRequest, NLParseResponse, NLBookingSubmissionIn,
     BookingDecision, FestWeekResult,
     ExamAssignment,
     DashboardStats,
@@ -545,55 +545,59 @@ def reprocess_bookings():
 
 
 @app.post("/api/manual-booking")
-def create_manual_booking(req: dict[str, Any], authorization: str | None = Header(default=None)):
-    """Check a structured booking form with the deterministic booking gate."""
-    try:
-        user = user_from_authorization(authorization)
-    except PermissionError as exc:
-        raise HTTPException(401, str(exc))
-    if user.role not in {"club_representative", "admin"}:
-        return {
-            "status": "not_allowed",
-            "message": "Only a Club representative or Admin can create the final booking. You can still use the assistant to prepare a draft.",
-        }
+def create_manual_booking(req: NLBookingSubmissionIn, authorization: str | None = Header(default=None)):
+    """Validate and reserve a structured manual booking through the same gate."""
+    return submit_nl_booking(req, authorization)
+
+
+@app.post("/api/nl-book/submit")
+def submit_nl_booking(req: NLBookingSubmissionIn, authorization: str | None = Header(default=None)):
+    """Recheck an edited booking draft and reserve it only after explicit submission."""
+    user = _require_action(authorization, "request_booking")
+    req = req.model_dump()
     if not state.assignments:
         raise HTTPException(400, "No timetable is available yet. Generate one first.")
 
     data = _load_dataset()
-    from .booking_engine import validate_manual_booking
-
     assignments = {
         session_id: (assignment["day"], assignment["start_period"], assignment["room_id"])
         for session_id, assignment in state.assignments.items()
     }
-    existing_bookings = (state.fest_week or {}).get("bookings", [])
+    requests_by_id = {request["id"]: request for request in data.get("booking_requests", [])}
+    existing_bookings = [
+        {
+            **booking,
+            "mandatory_for_groups": booking.get("mandatory_for_groups", requests_by_id.get(booking.get("request_id"), {}).get("mandatory_for_groups", [])),
+        }
+        for booking in (state.fest_week or {}).get("bookings", [])
+    ]
+    existing_bookings.extend({
+        "request_id": booking["id"], "status": "approved",
+        "room_id": booking["room_id"], "day": booking["day"],
+        "start_period": booking["start_period"], "end_period": booking["end_period"],
+    } for booking in state.live_bookings)
+    from .booking_engine import validate_manual_booking
     reason = validate_manual_booking(data, assignments, req, existing_bookings)
     if reason:
-        state.add_audit(
-            "manual_booking_rejected", "manual_booking", str(req.get("room_id", "unknown")),
-            actor=user.username, details={"reason": reason},
-        )
+        state.add_audit("nl_booking_rejected", "nl_booking", str(req.get("room_id", "unknown")),
+                        actor=user.username, details={"reason": reason})
         return {"status": "rejected", "message": reason}
 
-    room_id = str(req["room_id"])
-    room = next(room for room in data["rooms"] if room["id"] == room_id)
-    start = int(req["start_period"])
-    duration = int(req["duration_periods"])
-    state.add_audit(
-        "manual_booking_checked", "manual_booking", room_id, actor=user.username,
-        details={"day": str(req["day"]).upper(), "start": start, "duration": duration},
-    )
+    room = next(room for room in data["rooms"] if room["id"] == req["room_id"])
+    start, duration = int(req["start_period"]), int(req["duration_periods"])
+    requester_role = "club" if user.role == "club_representative" else user.role
+    category = data.get("role_category_cap", {}).get(requester_role, "club_event")
+    booking = state.add_live_booking({
+        "title": str(req["purpose"]).strip(), "room_id": room["id"],
+        "room_name": room["name"], "room_type": room.get("type"),
+        "room_capacity": room["capacity"], "day": str(req["day"]).upper(),
+        "start_period": start, "end_period": start + duration - 1,
+        "mandatory_for_groups": req.get("mandatory_for_groups", []),
+        "requester_role": requester_role, "category": category,
+    }, actor=user.username)
     return {
-        "status": "approved",
-        "message": "Booking passes the timetable validity checks.",
-        "booking": {
-            "room_id": room_id,
-            "room_name": room["name"],
-            "day": str(req["day"]).upper(),
-            "start_period": start,
-            "end_period": start + duration - 1,
-            "purpose": str(req["purpose"]),
-        },
+        "status": "approved", "message": "The edited booking passed validation and is now reserved.",
+        "booking": booking,
     }
 
 
@@ -696,6 +700,22 @@ def nl_book(req: NLParseRequest, authorization: str | None = Header(default=None
             room_busy[(booking["room_id"], booking["day"], p)].append(booking["id"])
     
     group_occ: dict[tuple[str, str, int], list[str]] = defaultdict(list)
+    for sid, assignment in state.assignments.items():
+        session = sessions_map.get(sid)
+        if not session:
+            continue
+        for period in range(assignment["start_period"], assignment["start_period"] + session["duration"]):
+            for group in session.get("groups", []):
+                group_occ[(group, assignment["day"], period)].append(sid)
+    reservations = list((state.fest_week or {}).get("bookings", [])) + state.live_bookings
+    requests_by_id = {request["id"]: request for request in data.get("booking_requests", [])}
+    for booking in reservations:
+        if booking.get("status", "approved") not in ("approved", "alternative_offered"):
+            continue
+        groups = booking.get("mandatory_for_groups", requests_by_id.get(booking.get("request_id"), {}).get("mandatory_for_groups", []))
+        for period in range(booking["start_period"], booking["end_period"] + 1):
+            for group in groups:
+                group_occ[(group, booking["day"], period)].append(booking.get("id", booking.get("request_id", "booking")))
     
     # Create a mock request object
     mock_req = {
@@ -731,28 +751,13 @@ def nl_book(req: NLParseRequest, authorization: str | None = Header(default=None
             "start_period": start_p,
             "end_period": end_p,
         }
-        if user.role not in {"club_representative", "admin"}:
-            _booking_chat_context[user.username] = {"draft": parsed, "last_status": "draft_ready", "booking": booking}
-            return {
-                "status": "assistant",
-                "parsed": parsed,
-                "booking": booking,
-                "message": "I prepared a room option, but only a Club representative or Admin can create the final booking. Please ask one of them to submit it.",
-                "accessibility_warning": access_warning,
-                "mode": draft_mode,
-            }
-
-        live_booking = state.add_live_booking({
-            **booking,
-            "title": parsed.get("title") or "Room booking",
-        }, actor=user.username)
-        booking["booking_id"] = live_booking["id"]
-        _booking_chat_context[user.username] = {"draft": parsed, "last_status": "approved", "booking": booking}
+        _booking_chat_context[user.username] = {"draft": parsed, "last_status": "draft_ready", "booking": booking}
         
         return {
-            "status": "approved" if is_exact else "alternative_offered",
+            "status": "draft_ready",
             "parsed": parsed,
             "booking": booking,
+            "message": "Review and edit this room option, then submit it to reserve the slot.",
             "accessibility_warning": access_warning,
             "mode": draft_mode,
         }

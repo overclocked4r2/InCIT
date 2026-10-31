@@ -119,6 +119,17 @@ class NLParseRequest(BaseModel):
     text: str = Field(min_length=1)
 
 
+class NLBookingSubmissionIn(BaseModel):
+    room_id: str = Field(min_length=1, max_length=40)
+    day: str = Field(min_length=3, max_length=3)
+    start_period: int = Field(ge=1, le=13)
+    duration_periods: int = Field(ge=1, le=13)
+    attendance: int = Field(ge=1)
+    purpose: str = Field(min_length=1, max_length=200)
+    needs: list[str] = Field(default_factory=list)
+    mandatory_for_groups: list[str] = Field(default_factory=list)
+
+
 class NLParseResponse(BaseModel):
     attendance: int | None = None
     duration_periods: int | None = None

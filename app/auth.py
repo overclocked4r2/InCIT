@@ -32,7 +32,7 @@ ACTION_ROLES = {
     "manage_timetable": {"admin", "department_coordinator"},
     "manage_disruption": {"admin", "department_coordinator"},
     "request_reschedule": {"department_coordinator", "faculty"},
-    "request_booking": {"club_representative", "admin"},
+    "request_booking": {"admin", "department_coordinator", "faculty", "club_representative"},
     "approve_reschedule": {"admin"},
     "reset_demo": {"admin"},
 }

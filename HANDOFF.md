@@ -1,49 +1,66 @@
 # InCIT handoff
 
-## Done
+## Current status
 
-- User-requested UI Step 1: moved the signed-in user name, role, and Sign out
-  button from a fixed overlay into the top bar's single flex row. The row has
-  gaps, shrinking text, and mobile-safe spacing so it cannot overlap the event
-  label or search control.
-- User-requested UI Step 2: all signed-in roles can chat with the booking
-  assistant. Greetings and capability questions get friendly replies; short
-  text is accepted; only Admin and Club representative can create a booking.
-- User-requested UI Step 2b: greetings and general questions use Gemini when
-  available and show an AI mode badge. If Gemini is unavailable, Basic mode
-  shows a role-aware built-in reply; booking validity remains deterministic.
-- User-requested UI Step 2c: Basic mode now has distinct replies for modes,
-  help, thanks, confusion, and frustration. It does not repeat its last reply
-  for the same user and logs the precise Gemini fallback reason to the backend
-  console.
-- User-requested chat follow-up step: the assistant now keeps a short-lived
-  editable booking draft per signed-in user. A reply such as `2 hours` fills a
-  missing duration, and `what's available?` after a rejection gives factual,
-  deterministic capacity guidance without claiming that a room is free.
-- User-requested no-hardcoding correction: removed phrase-by-phrase chat
-  answers. Text that does not look like a structured booking request goes to
-  Gemini; Basic mode now gives one explicit limitation message rather than
-  pretending to be a free-form chatbot.
-- Chat bookings are now persisted in live app state, reserve their room/time
-  for later requests, and appear in the timetable as purple `booking` slots.
-  Faculty and Group filters intentionally hide room-only bookings; the UI
-  tells the user when that happens.
-- Gemini requests now put the key in the `x-goog-api-key` header, retry a
-  current Flash-Lite model when an older configured model is unavailable, and
-  log Google’s safe HTTP status/message rather than only `HTTPError`.
+This is the current continuation note. Read this and `handoff/STATE.md` before
+resuming. The product work in this session is complete and verified. Step 12
+deployment is the only known external blocker: it needs the owner's Render
+service/account or an existing live URL.
 
-## Next
+## Completed in this session
 
-- User-requested UI Step 3: add Hinglish input support, UI wording, example
-  chips, and parser tests. Before this, optionally test the new follow-up chat
-  flow in the browser.
+- Added romanised Hinglish date, time, attendance, duration, room, and need
+  aliases. The deterministic parser now handles examples such as
+  `Kal shaam ko seminar hall chahiye, 200 log, 2 ghante` and
+  `Budhvaar shaam 6 se 8 baje auditorium chahiye, 80 log`.
+- Updated the booking page wording and examples to invite English, Hindi, and
+  Hinglish requests.
+- Changed natural-language booking from immediate reservation to an editable
+  suggestion. The user can change room, day, period, duration, attendance,
+  purpose, equipment, and groups that must be free.
+- Added an explicit submit endpoint. It validates the edited request again
+  against room features/capacity, room closures, classes, mandatory groups,
+  existing bookings, and the lunch break, and reserves only after it passes.
+- Routed the manual booking form through the same final validation and
+  reservation gate.
+- Centralized booking permissions across all four demo roles; the requester
+  role determines the allowed category, which is recorded with a confirmed
+  live booking.
+- Updated the README and AI declaration to describe the booking review flow,
+  supported languages, and role-specific booking access.
+- Added regression coverage for Hinglish parsing, no reservation before
+  confirmation, revalidation at submission, lunch spans, and group conflicts.
 
-## Known issues
+## Verification
 
-- Earlier Step 9a LLM-parser changes are still uncommitted alongside this UI
-  and chat work. Review all files in `git status` together before committing.
-- The current shell has no `GEMINI_API_KEY`; its Basic-mode log reason is
-  `GEMINI_API_KEY is not configured`. A separately started backend needs that
-  environment variable in its own terminal before it can use AI mode.
-- The API key shown in the user's screenshot is compromised and must be
-  revoked/rotated in Google AI Studio before running the backend again.
+- `.venv\\Scripts\\python.exe -m pytest -q` — **82 passed**.
+- `cd frontend; npm run build` — passed (TypeScript and Vite production build).
+- Official starter-pack validator, `exports/schedule.json` — **0 hard
+  violations**, soft penalty 3, booking score 60.5, 0 priority inversions.
+- Official starter-pack validator, `exports/schedule_after.json` — **0 hard
+  violations**, soft penalty 3, 13 sessions moved (7 time, 6 room-only).
+- `git diff --check` — passed.
+
+## Resume here
+
+1. Read `handoff/STATE.md` and inspect `git status`/`git diff`; this session's
+   changes are intentionally uncommitted.
+2. Continue Step 12 only if the owner supplies Render access/service details or
+   a live URL. Do not claim deployment or live-login checks are complete.
+3. Keep `validator.py` and all organiser starter-pack files unchanged. Never
+   edit schedule exports by hand; regenerate them through the app.
+4. Gemini is optional and the current shell does not have `GEMINI_API_KEY`.
+   Natural-language deterministic parsing, review, and validation work without
+   that key.
+
+## Important existing project facts
+
+- InCIT is a staff-side timetable and venue-management demo for the CIT public
+  dataset. Its hard-rule gate and organiser validator remain the authority;
+  Gemini only helps parse/phrase drafts.
+- Both schedule exports already validate with 0 hard violations. The baseline
+  has soft penalty 3; sample disruption moves 13 sessions.
+- State is in memory and resets on server restart. Demo accounts are listed in
+  `README.md`; they are not real credentials.
+- See `handoff/AI_LOG.md` for the longer work history and `handoff/PLAN.md` for
+  the original numbered implementation plan.

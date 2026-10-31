@@ -3,7 +3,7 @@ import logging
 
 from app import main
 from app.auth import login, require_action
-from app.schemas import NLParseRequest
+from app.schemas import NLParseRequest, NLBookingSubmissionIn
 
 
 def test_short_greeting_is_a_friendly_chat_reply_for_admin(monkeypatch):
@@ -41,28 +41,69 @@ def test_friendly_chat_uses_ai_mode_when_gemini_reply_is_available(monkeypatch):
     }
 
 
-def test_only_admin_and_club_roles_can_create_bookings():
+def test_every_role_can_submit_only_with_its_role_capped_category():
     admin_token, _ = login("admin@incit.demo", "admin123")
+    coordinator_token, _ = login("coordinator@incit.demo", "coord123")
     club_token, _ = login("club@incit.demo", "club123")
     faculty_token, _ = login("faculty@incit.demo", "faculty123")
 
     assert require_action(f"Bearer {admin_token}", "request_booking").role == "admin"
+    assert require_action(f"Bearer {coordinator_token}", "request_booking").role == "department_coordinator"
     assert require_action(f"Bearer {club_token}", "request_booking").role == "club_representative"
+    assert require_action(f"Bearer {faculty_token}", "request_booking").role == "faculty"
+
+
+def test_natural_language_check_returns_an_editable_draft_without_reserving(monkeypatch):
+    data = {
+        "rooms": [{"id": "R1", "name": "Room One", "type": "seminar_hall", "capacity": 100}],
+        "sessions": [], "room_unavailability": [],
+    }
+    monkeypatch.setattr(main, "user_from_authorization", lambda _: SimpleNamespace(username="draft-user", role="club_representative"))
+    monkeypatch.setattr(main, "_load_dataset", lambda: data)
+    monkeypatch.setattr("app.nl_parser.parse_booking_request", lambda *_: {
+        "attendance": 40, "duration_periods": 2,
+        "windows": [{"day": "WED", "from_period": 3, "to_period": 4}],
+        "room_types": ["seminar_hall"], "needs": [], "requested_room": None,
+        "mandatory_for_groups": [], "title": "Guest talk", "follow_up": None,
+        "assumptions": [], "llm_used": False,
+    })
+    monkeypatch.setattr("app.booking_engine._find_placement", lambda *_: ("R1", "WED", 3, 4, True))
+    monkeypatch.setattr(main.state, "_assignments", {"S1": {"day": "MON", "start_period": 1, "room_id": "R1"}})
+    monkeypatch.setattr(main.state, "live_bookings", [])
+    main._booking_chat_context.pop("draft-user", None)
+
     try:
-        require_action(f"Bearer {faculty_token}", "request_booking")
-    except PermissionError as exc:
-        assert "admin, club_representative" in str(exc)
-    else:
-        raise AssertionError("Faculty must not create the final booking.")
+        response = main.nl_book(NLParseRequest(text="seminar hall"), "Bearer demo")
+        assert response["status"] == "draft_ready"
+        assert response["booking"]["room_id"] == "R1"
+        assert main.state.live_bookings == []
+    finally:
+        main._booking_chat_context.pop("draft-user", None)
 
 
-def test_manual_booking_explains_the_role_limit_without_an_error(monkeypatch):
-    monkeypatch.setattr(main, "user_from_authorization", lambda _: SimpleNamespace(username="faculty", role="faculty"))
+def test_confirmed_booking_is_revalidated_then_reserved(monkeypatch):
+    data = {
+        "rooms": [{"id": "R1", "name": "Room One", "type": "seminar_hall", "capacity": 100}],
+        "role_category_cap": {"club": "club_event"},
+    }
+    monkeypatch.setattr(main, "require_action", lambda *_: SimpleNamespace(username="club", role="club_representative"))
+    monkeypatch.setattr(main, "_load_dataset", lambda: data)
+    monkeypatch.setattr("app.booking_engine.validate_manual_booking", lambda *_: None)
+    monkeypatch.setattr(main.state, "_assignments", {"S1": {"day": "MON", "start_period": 1, "room_id": "R1"}})
+    monkeypatch.setattr(main.state, "_fest_week", {"bookings": []})
+    monkeypatch.setattr(main.state, "live_bookings", [])
 
-    response = main.create_manual_booking({}, "Bearer demo")
+    response = main.submit_nl_booking(NLBookingSubmissionIn(
+        room_id="R1", day="WED", start_period=3,
+        duration_periods=2, attendance=40, purpose="Edited guest talk",
+        needs=[], mandatory_for_groups=[],
+    ), "Bearer demo")
 
-    assert response["status"] == "not_allowed"
-    assert "Club representative or Admin" in response["message"]
+    assert response["status"] == "approved"
+    assert response["booking"]["title"] == "Edited guest talk"
+    assert response["booking"]["requester_role"] == "club"
+    assert response["booking"]["category"] == "club_event"
+    assert len(main.state.live_bookings) == 1
 
 
 def test_basic_mode_is_an_honest_single_safety_fallback(monkeypatch):
