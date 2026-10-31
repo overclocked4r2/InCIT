@@ -40,8 +40,14 @@ LUNCH_AFTER = 5  # lunch is after period 5, before period 6
 LAB_STARTS = {2, 6}
 
 
-def solve_timetable(data: dict, *, time_limit_seconds: int = 60, num_workers: int = 8) -> SolverResult:
-    """Run the CP-SAT solver on the CIT dataset and return assignments."""
+def solve_timetable(
+    data: dict,
+    *,
+    time_limit_seconds: int = 60,
+    num_workers: int = 8,
+    baseline_assignments: dict[str, dict[str, Any]] | list[dict[str, Any]] | None = None,
+) -> SolverResult:
+    """Run the CP-SAT solver, preserving an optional existing timetable when possible."""
     t0 = time.time()
     time_limit_seconds = max(1, min(time_limit_seconds, 60))
     
@@ -114,6 +120,12 @@ def solve_timetable(data: dict, *, time_limit_seconds: int = 60, num_workers: in
         
         valid_starts[s["id"]] = starts
     
+    baseline_by_session: dict[str, dict[str, Any]] = {}
+    if isinstance(baseline_assignments, dict):
+        baseline_by_session = baseline_assignments
+    elif baseline_assignments:
+        baseline_by_session = {a["session_id"]: a for a in baseline_assignments}
+
     # Build the model
     model = cp_model.CpModel()
     
@@ -126,15 +138,17 @@ def solve_timetable(data: dict, *, time_limit_seconds: int = 60, num_workers: in
     # Assignment booleans: x[sid, day, start, room_idx] = 1 if assigned
     x: dict[tuple[str, int, int, int], Any] = {}
     
+    impossible_sessions: list[str] = []
     for s in sessions:
         sid = s["id"]
         compat = compatible_rooms[sid]
         starts = valid_starts[sid]
         
         if not compat:
-            # No compatible room exists — this will cause infeasibility
+            impossible_sessions.append(f"{sid}: no compatible room meets its type, capacity, and accessibility needs")
             continue
         if not starts:
+            impossible_sessions.append(f"{sid}: no valid start period fits its duration and lab/lunch rules")
             continue
         
         fx = s.get("fixed_slot")
@@ -162,7 +176,7 @@ def solve_timetable(data: dict, *, time_limit_seconds: int = 60, num_workers: in
                     session_vars.append(var)
         
         if not session_vars:
-            # No valid assignment exists for this session
+            impossible_sessions.append(f"{sid}: all compatible room and time options are unavailable")
             continue
         
         # Exactly one assignment per session
@@ -179,6 +193,19 @@ def solve_timetable(data: dict, *, time_limit_seconds: int = 60, num_workers: in
             model.add(session_day[sid] == d).only_enforce_if(var)
             model.add(session_start[sid] == p).only_enforce_if(var)
             model.add(session_room_idx[sid] == ri).only_enforce_if(var)
+
+    if impossible_sessions:
+        return SolverResult(
+            status="infeasible",
+            assignments=[],
+            violations=[f"No valid fix: {reason}" for reason in impossible_sessions],
+            stats={
+                "elapsed_seconds": round(time.time() - t0, 2),
+                "total_sessions": len(sessions),
+                "assigned_sessions": 0,
+                "movement_optimised": bool(baseline_by_session),
+            },
+        )
     
     # No-overlap constraints
     # Group sessions by potential conflicts
@@ -437,8 +464,28 @@ def solve_timetable(data: dict, *, time_limit_seconds: int = 60, num_workers: in
                         if key in x:
                             soft_penalties.append(x[key])
     
-    if soft_penalties:
-        model.minimize(sum(soft_penalties))
+    # When a baseline is supplied, changing an existing session is much more
+    # expensive than any soft preference.  This gives the solver freedom to
+    # repair a disruption while keeping unaffected sessions stable.
+    movement_penalties = []
+    for sid, old in baseline_by_session.items():
+        if sid not in session_day or sid not in compatible_rooms:
+            continue
+        try:
+            old_day = DAY_IDX[old["day"]]
+            old_start = old["start_period"]
+            old_room_index = compatible_rooms[sid].index(old["room_id"])
+        except (KeyError, ValueError):
+            continue
+        old_var = x.get((sid, old_day, old_start, old_room_index))
+        if old_var is not None:
+            # 10,000 exceeds the total possible preference cost in this data,
+            # so this is a lexicographic "move as few as possible" objective.
+            movement_penalties.append((1 - old_var) * 10_000)
+
+    objective_terms = movement_penalties + soft_penalties
+    if objective_terms:
+        model.minimize(sum(objective_terms))
     
     # Solve
     solver = cp_model.CpSolver()
@@ -458,6 +505,23 @@ def solve_timetable(data: dict, *, time_limit_seconds: int = 60, num_workers: in
         cp_model.UNKNOWN: "unknown",
     }
     result_status = status_map.get(status, "unknown")
+
+    if result_status == "infeasible":
+        return SolverResult(
+            status=result_status,
+            assignments=[],
+            violations=[
+                "No valid fix: the remaining room, faculty, group, and fixed-slot constraints cannot all be met together."
+            ],
+            stats={
+                "elapsed_seconds": round(elapsed, 2),
+                "total_sessions": len(sessions),
+                "assigned_sessions": 0,
+                "solver_status_raw": str(status),
+                "time_limit_seconds": time_limit_seconds,
+                "movement_optimised": bool(baseline_by_session),
+            },
+        )
     
     assignments = []
     if status in (cp_model.OPTIMAL, cp_model.FEASIBLE):
@@ -479,6 +543,13 @@ def solve_timetable(data: dict, *, time_limit_seconds: int = 60, num_workers: in
                 # Session was not assigned (solver couldn't find a slot)
                 pass
     
+    moved_sessions = 0
+    if baseline_by_session:
+        for assignment in assignments:
+            old = baseline_by_session.get(assignment["session_id"])
+            if old and any(assignment[key] != old.get(key) for key in ("day", "start_period", "room_id")):
+                moved_sessions += 1
+
     return SolverResult(
         status=result_status,
         assignments=assignments,
@@ -489,5 +560,8 @@ def solve_timetable(data: dict, *, time_limit_seconds: int = 60, num_workers: in
             "solver_status_raw": str(status),
             "objective_value": solver.objective_value if status in (cp_model.OPTIMAL, cp_model.FEASIBLE) else None,
             "time_limit_seconds": time_limit_seconds,
+            "movement_optimised": bool(baseline_by_session),
+            "moved_sessions": moved_sessions,
+            "unchanged_sessions": len(baseline_by_session) - moved_sessions if baseline_by_session else 0,
         },
     )

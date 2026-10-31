@@ -71,6 +71,7 @@ class SolverResponse(BaseModel):
     assignments: list[TimetableAssignment]
     stats: dict[str, Any] = {}
     violations: list[str] = []
+    changes: list[dict[str, Any]] = []
 
 
 class TimetableState(BaseModel):
@@ -200,6 +201,7 @@ class RescheduleResponse(BaseModel):
     conflicts: list[str] = []
     old_assignment: TimetableAssignment | None = None
     new_assignment: TimetableAssignment | None = None
+    changes: list[dict[str, Any]] = []
 
 
 class ApprovalRequest(BaseModel):

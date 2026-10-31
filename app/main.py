@@ -205,6 +205,45 @@ def get_calendar():
 # Solver / Timetable endpoints
 # ============================================================
 
+def _reschedule_diff(
+    baseline: dict[str, dict[str, Any]],
+    assignments: list[dict[str, Any]],
+    data: dict[str, Any],
+    disruption: dict[str, Any] | None,
+) -> list[dict[str, Any]]:
+    """Describe every move in plain language without asking an LLM to infer it."""
+    sessions = {session["id"]: session for session in data["sessions"]}
+    changes = (disruption or {}).get("changes", [])
+    diff = []
+    for new in assignments:
+        old = baseline.get(new["session_id"])
+        if old is None or all(new[key] == old.get(key) for key in ("day", "start_period", "room_id")):
+            continue
+        session = sessions.get(new["session_id"], {})
+        duration = session.get("duration", 1)
+        old_periods = range(old["start_period"], old["start_period"] + duration)
+        reasons = []
+        for change in changes:
+            if change.get("type") == "room_unavailable" and (
+                change.get("room_id") == old["room_id"]
+                and old["day"] in change.get("days", [])
+                and set(old_periods) & set(change.get("periods", []))
+            ):
+                reasons.append(f"Original room {old['room_id']} is unavailable at this time.")
+            if change.get("type") == "faculty_unavailable" and (
+                change.get("faculty_id") == session.get("faculty_id")
+                and old["day"] in change.get("days", [])
+                and set(old_periods) & set(change.get("periods", []))
+            ):
+                reasons.append("Faculty is unavailable at the original time.")
+        diff.append({
+            "session_id": new["session_id"],
+            "old": old,
+            "new": new,
+            "reason": " ".join(reasons) or "Moved to keep the timetable valid after the disruption.",
+        })
+    return diff
+
 @app.post("/api/solver/generate", response_model=SolverResponse)
 def generate_timetable(req: SolverRequest | None = None):
     """Run the OR-Tools solver to generate a timetable."""
@@ -212,6 +251,7 @@ def generate_timetable(req: SolverRequest | None = None):
         req = SolverRequest()
     
     data = _load_dataset()
+    baseline = copy.deepcopy(state.assignments)
     
     # Apply disruption if one is active
     effective_data = data
@@ -226,6 +266,7 @@ def generate_timetable(req: SolverRequest | None = None):
             effective_data,
             time_limit_seconds=req.time_limit_seconds,
             num_workers=req.num_workers,
+            baseline_assignments=baseline or None,
         )
         
         if result.status in ("optimal", "feasible"):
@@ -242,6 +283,7 @@ def generate_timetable(req: SolverRequest | None = None):
             assignments=[TimetableAssignment(**a) for a in result.assignments],
             stats=result.stats,
             violations=result.violations,
+            changes=_reschedule_diff(baseline, result.assignments, effective_data, state.disruption_data),
         )
     except Exception as e:
         state.timetable_status = "not_generated"
@@ -530,7 +572,7 @@ def request_reschedule(req: RescheduleRequest):
     if not new_room:
         raise HTTPException(404, f"Room {req.new_room_id} not found.")
     
-    old = state.assignments[req.session_id]
+    old = state.assignments[req.session_id].copy()
     
     # Check conflicts
     conflicts = []
@@ -608,6 +650,12 @@ def request_reschedule(req: RescheduleRequest):
         message=f"Session {req.session_id} rescheduled successfully.",
         old_assignment=TimetableAssignment(**old),
         new_assignment=TimetableAssignment(**new),
+        changes=[{
+            "session_id": req.session_id,
+            "old": old,
+            "new": new,
+            "reason": req.reason,
+        }],
     )
 
 
