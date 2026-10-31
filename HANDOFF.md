@@ -28,11 +28,16 @@ service/account or an existing live URL.
   live booking.
 - Updated the README and AI declaration to describe the booking review flow,
   supported languages, and role-specific booking access.
-- Added two persistent themes: Midnight Tide uses deep navy with soft teal;
-  Porcelain uses warm white with ink and ocean teal. The compact header switch
-  is keyboard accessible, and accent foregrounds remain readable in both.
+- Added the supplied four palettes (Indigo Aurora, Emerald Ink, Violet & Gold,
+  Ocean & Amber) in Midnight/dark and Porcelain/light modes. Palette and theme
+  persist across reloads; the compact appearance panel is keyboard accessible.
 - Added restrained color transitions, clear keyboard focus, and reduced-motion
   support so theme interaction stays calm and usable for official work.
+- Fixed desktop sidebar collapse: labels hide, icons center, tooltips remain,
+  the main content follows the width, and the choice persists.
+- Improved phone layouts: horizontal nav and timetable scrolling, stacked
+  disruption panels, shrink-safe booking/select fields, and a viewport-anchored
+  appearance panel.
 - Added regression coverage for Hinglish parsing, no reservation before
   confirmation, revalidation at submission, lunch spans, and group conflicts.
 
@@ -46,10 +51,14 @@ service/account or an existing live URL.
   violations**, soft penalty 3, 13 sessions moved (7 time, 6 room-only).
 - `git diff --check` — passed.
 - `npm run build` after the theme work — passed (TypeScript and Vite).
-- A signed-in browser preview was not completed: the Windows computer-use
-  layer could not verify the current browser URL, so no browser actions were
-  taken. The selector still needs a visual pass when the app can be opened
-  safely in a known local preview.
+- `npm run build` after the four-palette and mobile updates — passed (TypeScript
+  and Vite); responsive layout classes reviewed across staff pages.
+- Signed-in Edge DevTools emulation covered all seven staff routes at 320, 390,
+  and 768px. The document and body widths matched the viewport on every route.
+  At 320px the appearance panel stayed inside the screen and the Ocean & Amber
+  / Porcelain controls changed the root settings. At 1440px the sidebar and
+  main content aligned at 240px expanded and 64px collapsed. Inspected a
+  390px dashboard screenshot; it is in the system temp directory, not the repo.
 
 ## Resume here
 

@@ -173,7 +173,7 @@ export function NLBookingPage() {
           messages.map((msg, i) => (
             <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
               <div
-                className={`max-w-[80%] rounded-xl px-4 py-3 text-sm ${
+                className={`max-w-full sm:max-w-[88%] rounded-xl px-3 py-3 sm:px-4 text-sm ${
                   msg.role === 'user'
                     ? 'bg-[var(--color-accent)] text-[var(--color-on-accent)] rounded-br-sm'
                     : 'bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-bl-sm'
@@ -197,7 +197,7 @@ export function NLBookingPage() {
                   </div>
                 )}
                 {msg.draft && (
-                  <form className="mt-3 grid grid-cols-2 gap-2 border-t border-[var(--color-border)] pt-3 text-xs" onSubmit={event => { event.preventDefault(); void confirmDraft(i); }}>
+                  <form className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2 border-t border-[var(--color-border)] pt-3 text-xs" onSubmit={event => { event.preventDefault(); void confirmDraft(i); }}>
                     <label className="min-w-0">Room ID
                       <input required value={msg.draft.room_id} onChange={event => updateDraft(i, 'room_id', event.target.value.toUpperCase())} className="form-input mt-1 w-full" aria-label="Booking room ID" />
                     </label>
@@ -218,13 +218,13 @@ export function NLBookingPage() {
                     <label>Purpose
                       <input required value={msg.draft.purpose} onChange={event => updateDraft(i, 'purpose', event.target.value)} className="form-input mt-1 w-full" />
                     </label>
-                    <label className="col-span-2">Needs (comma separated)
+                    <label className="sm:col-span-2">Needs (comma separated)
                       <input value={msg.draft.needs.join(', ')} onChange={event => updateDraft(i, 'needs', event.target.value.split(',').map(item => item.trim()).filter(Boolean))} className="form-input mt-1 w-full" />
                     </label>
-                    <label className="col-span-2">Groups that must be free (comma separated)
+                    <label className="sm:col-span-2">Groups that must be free (comma separated)
                       <input value={msg.draft.mandatory_for_groups.join(', ')} onChange={event => updateDraft(i, 'mandatory_for_groups', event.target.value.split(',').map(item => item.trim()).filter(Boolean))} className="form-input mt-1 w-full" placeholder="Y1-A, CSE-2" />
                     </label>
-                    <Button disabled={loading} loading={loading} className="col-span-2">Confirm and reserve</Button>
+                    <Button disabled={loading} loading={loading} className="sm:col-span-2">Confirm and reserve</Button>
                   </form>
                 )}
               </div>
@@ -252,7 +252,7 @@ export function NLBookingPage() {
           onChange={e => setInput(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && !loading && submit()}
           placeholder="Example: Kal shaam 6 baje seminar hall chahiye, 80 log…"
-          className="flex-1 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-xl px-4 py-3 text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)] focus:border-transparent transition-all"
+          className="min-w-0 flex-1 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-xl px-4 py-3 text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)] focus:border-transparent transition-all"
         />
         <Button onClick={() => submit()} disabled={!input.trim() || loading} loading={loading}>
           Send

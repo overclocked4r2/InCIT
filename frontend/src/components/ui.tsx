@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 /* ── Card ── */
 export function Card({ children, className = '', onClick }: { children: ReactNode; className?: string; onClick?: () => void }) {
   return (
-    <div className={`glass p-5 ${className}`} onClick={onClick} role={onClick ? 'button' : undefined}>
+    <div className={`glass min-w-0 p-5 ${className}`} onClick={onClick} role={onClick ? 'button' : undefined}>
       {children}
     </div>
   );
@@ -232,18 +232,19 @@ export function Metric({
 
 /* ── Select ── */
 export function Select({
-  value, onChange, options, placeholder,
+  value, onChange, options, placeholder, className = '',
 }: {
   value: string;
   onChange: (v: string) => void;
   options: { value: string; label: string }[];
   placeholder?: string;
+  className?: string;
 }) {
   return (
     <select
       value={value}
       onChange={e => onChange(e.target.value)}
-      className="bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)] appearance-none cursor-pointer"
+      className={`min-w-0 max-w-full bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)] appearance-none cursor-pointer ${className}`}
     >
       {placeholder && <option value="">{placeholder}</option>}
       {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}

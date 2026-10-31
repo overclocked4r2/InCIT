@@ -6,9 +6,14 @@ import './index.css';
 
 try {
   const savedTheme = localStorage.getItem('incit_theme');
-  document.documentElement.dataset.theme = savedTheme === 'porcelain' ? 'porcelain' : 'midnight';
+  const savedPalette = localStorage.getItem('incit_palette');
+  document.documentElement.dataset.theme = savedTheme === 'light' || savedTheme === 'porcelain' ? 'light' : 'dark';
+  document.documentElement.dataset.palette = ['indigo', 'emerald', 'violet', 'ocean'].includes(savedPalette ?? '')
+    ? savedPalette!
+    : 'indigo';
 } catch {
-  document.documentElement.dataset.theme = 'midnight';
+  document.documentElement.dataset.theme = 'dark';
+  document.documentElement.dataset.palette = 'indigo';
 }
 
 createRoot(document.getElementById('root')!).render(

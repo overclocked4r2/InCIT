@@ -168,9 +168,9 @@ export function ManualFormsPage() {
       <Card>
         <h2 className="text-lg font-bold tracking-tight">Why?</h2>
         <p className="text-xs text-[var(--color-text-muted)] mt-1">These answers use recorded reason codes. If AI phrasing is unavailable, you will see those codes directly.</p>
-        <div className="grid sm:grid-cols-2 gap-3 mt-4">
-          <div className="flex gap-2"><input value={whySession} onChange={e => setWhySession(e.target.value)} className="form-input min-w-0 flex-1" placeholder="Class session ID" /><button type="button" disabled={!whySession || loading} onClick={() => askWhy('class')} className="btn-secondary disabled:opacity-60">Why class?</button></div>
-          <div className="flex gap-2"><input value={whyBooking} onChange={e => setWhyBooking(e.target.value)} className="form-input min-w-0 flex-1" placeholder="Booking request ID" /><button type="button" disabled={!whyBooking || loading} onClick={() => askWhy('booking')} className="btn-secondary disabled:opacity-60">Why booking?</button></div>
+        <div className="grid min-w-0 sm:grid-cols-2 gap-3 mt-4">
+          <div className="flex min-w-0 gap-2"><input value={whySession} onChange={e => setWhySession(e.target.value)} className="form-input min-w-0 flex-1" placeholder="Class session ID" /><button type="button" disabled={!whySession || loading} onClick={() => askWhy('class')} className="btn-secondary disabled:opacity-60 shrink-0">Why class?</button></div>
+          <div className="flex min-w-0 gap-2"><input value={whyBooking} onChange={e => setWhyBooking(e.target.value)} className="form-input min-w-0 flex-1" placeholder="Booking request ID" /><button type="button" disabled={!whyBooking || loading} onClick={() => askWhy('booking')} className="btn-secondary disabled:opacity-60 shrink-0">Why booking?</button></div>
         </div>
         {whyMessage && <pre className="mt-3 whitespace-pre-wrap text-sm text-[var(--color-text-secondary)]">{whyMessage}</pre>}
       </Card>

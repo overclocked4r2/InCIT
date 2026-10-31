@@ -73,7 +73,7 @@ export function SpectraWeekPage() {
       )}
 
       {/* Summary cards */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <Card className="text-center cursor-pointer hover:border-[var(--color-success)]! transition-colors" onClick={() => setFilter(filter === 'approved' ? 'all' : 'approved')}>
           <div className="text-2xl font-bold text-[var(--color-success)]">{counts.approved}</div>
           <div className="text-xs text-[var(--color-text-muted)]">Approved</div>
@@ -89,12 +89,12 @@ export function SpectraWeekPage() {
       </div>
 
       {/* Filter tabs */}
-      <div className="flex gap-1 bg-[var(--color-surface-1)] p-1 rounded-lg w-fit border border-[var(--color-border)]">
+      <div className="flex max-w-full gap-1 overflow-x-auto bg-[var(--color-surface-1)] p-1 rounded-lg border border-[var(--color-border)]">
         {['all', 'approved', 'alternative_offered', 'rejected'].map(f => (
           <button
             key={f}
             onClick={() => setFilter(f)}
-            className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+            className={`shrink-0 whitespace-nowrap px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
               filter === f
                 ? 'bg-[var(--color-accent)] text-[var(--color-on-accent)]'
                 : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]'

@@ -179,7 +179,7 @@ export function DisruptionPage() {
         </Card>
       )}
 
-      <div className="grid md:grid-cols-2 gap-5">
+      <div className="grid lg:grid-cols-2 gap-5">
         {/* ── Disruption Panel ── */}
         <Card>
           <h3 className="text-sm font-bold mb-4 flex items-center gap-2">
@@ -191,7 +191,7 @@ export function DisruptionPage() {
             {/* Type */}
             <div>
               <label className="text-xs text-[var(--color-text-muted)] mb-1 block">Disruption Type</label>
-              <div className="flex gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <button
                   onClick={() => setDisType('room_unavailable')}
                   className={`flex-1 py-2 rounded-lg text-xs font-medium border transition-all ${disType === 'room_unavailable' ? 'bg-[var(--color-accent-dim)] border-[var(--color-accent)] text-[var(--color-accent)]' : 'border-[var(--color-border)] text-[var(--color-text-muted)]'}`}
@@ -211,19 +211,19 @@ export function DisruptionPage() {
             {disType === 'room_unavailable' ? (
               <div>
                 <label className="text-xs text-[var(--color-text-muted)] mb-1 block">Room</label>
-                <Select value={disRoomId} onChange={setDisRoomId} placeholder="Select room" options={rooms.map(r => ({ value: r.id, label: r.name }))} />
+                <Select value={disRoomId} onChange={setDisRoomId} placeholder="Select room" options={rooms.map(r => ({ value: r.id, label: r.name }))} className="w-full" />
               </div>
             ) : (
               <div>
                 <label className="text-xs text-[var(--color-text-muted)] mb-1 block">Faculty</label>
-                <Select value={disFacultyId} onChange={setDisFacultyId} placeholder="Select faculty" options={faculty.map(f => ({ value: f.id, label: f.name }))} />
+                <Select value={disFacultyId} onChange={setDisFacultyId} placeholder="Select faculty" options={faculty.map(f => ({ value: f.id, label: f.name }))} className="w-full" />
               </div>
             )}
 
             {/* Days */}
             <div>
               <label className="text-xs text-[var(--color-text-muted)] mb-1 block">Days</label>
-              <div className="flex gap-1.5">
+              <div className="flex flex-wrap gap-1.5">
                 {DAYS.map(d => (
                   <button
                     key={d}
@@ -264,7 +264,7 @@ export function DisruptionPage() {
               />
             </div>
 
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Button onClick={applyDisruption} loading={applying} variant="danger">
                 Apply Disruption
               </Button>
@@ -300,12 +300,12 @@ export function DisruptionPage() {
                 }
               />
             </div>
-            <div className="grid grid-cols-3 gap-2">
-              <div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <div className="min-w-0">
                 <label className="text-xs text-[var(--color-text-muted)] mb-1 block">New Day</label>
-                <Select value={rescDay} onChange={setRescDay} placeholder="Day" options={DAYS.map(d => ({ value: d, label: d }))} />
+                <Select value={rescDay} onChange={setRescDay} placeholder="Day" options={DAYS.map(d => ({ value: d, label: d }))} className="w-full" />
               </div>
-              <div>
+              <div className="min-w-0">
                 <label className="text-xs text-[var(--color-text-muted)] mb-1 block">New Period</label>
                 <input
                   type="number"
@@ -316,9 +316,9 @@ export function DisruptionPage() {
                   className="w-full bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
                 />
               </div>
-              <div>
+              <div className="min-w-0">
                 <label className="text-xs text-[var(--color-text-muted)] mb-1 block">New Room</label>
-                <Select value={rescRoom} onChange={setRescRoom} placeholder="Room" options={rooms.map(r => ({ value: r.id, label: r.name }))} />
+                <Select value={rescRoom} onChange={setRescRoom} placeholder="Room" options={rooms.map(r => ({ value: r.id, label: r.name }))} className="w-full" />
               </div>
             </div>
             <div>
