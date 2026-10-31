@@ -83,11 +83,16 @@ export const api = {
 
   /* ── Rescheduling ── */
   reschedule: (data: RescheduleRequest) =>
-    request<{ success: boolean; message: string; conflicts: string[] }>('/reschedule', {
+    request<{ success: boolean; message: string; conflicts: string[]; changes: unknown[] }>('/reschedule', {
       method: 'POST',
       body: JSON.stringify(data),
     }),
   rescheduleHistory: () => request<RescheduleHistoryEntry[]>('/reschedule/history'),
+  decideReschedule: (requestId: string, decision: 'approved' | 'rejected', comments = '') =>
+    request<{ status: string; message: string }>(`/reschedule/${requestId}/decision`, {
+      method: 'POST',
+      body: JSON.stringify({ request_id: requestId, decision, comments }),
+    }),
 
   /* ── Disruptions ── */
   applyDisruption: (changes: DisruptionChange[]) =>

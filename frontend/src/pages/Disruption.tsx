@@ -1,8 +1,24 @@
 import { useState, useEffect } from 'react';
 import { api } from '../api';
 import type { Room, Faculty, RescheduleHistoryEntry, TimetableResponse } from '../types';
-import { Card, Button, Badge, Select, Spinner, EmptyState } from '../components/ui';
+import { Card, Button, Select, Spinner, EmptyState } from '../components/ui';
 import { DAYS, PERIODS } from '../types';
+
+type ProposalChange = {
+  session_id: string;
+  old: { day: string; start_period: number; room_id: string };
+  new: { day: string; start_period: number; room_id: string };
+  reason: string;
+};
+
+type ProposalEntry = RescheduleHistoryEntry & {
+  id?: string;
+  old?: ProposalChange['old'];
+  new?: ProposalChange['new'];
+  changes?: ProposalChange[];
+  decided_by?: string;
+  comments?: string;
+};
 
 export function DisruptionPage() {
   const [rooms, setRooms] = useState<Room[]>([]);
@@ -30,6 +46,7 @@ export function DisruptionPage() {
   const [rescRoom, setRescRoom] = useState('');
   const [rescReason, setRescReason] = useState('');
   const [rescheduling, setRescheduling] = useState(false);
+  const [decidingId, setDecidingId] = useState('');
 
   const load = async () => {
     setLoading(true);
@@ -125,6 +142,20 @@ export function DisruptionPage() {
       setError((e as Error).message);
     } finally {
       setRescheduling(false);
+    }
+  };
+
+  const decideReschedule = async (requestId: string, decision: 'approved' | 'rejected') => {
+    setDecidingId(requestId);
+    setError('');
+    try {
+      const res = await api.decideReschedule(requestId, decision);
+      setSuccessMsg(res.message);
+      await load();
+    } catch (e: unknown) {
+      setError((e as Error).message);
+    } finally {
+      setDecidingId('');
     }
   };
 
@@ -314,21 +345,43 @@ export function DisruptionPage() {
           <EmptyState icon="↻" title="No reschedule requests yet" />
         ) : (
           <div className="space-y-2">
-            {rescheduleHistory.map((h, i) => (
-              <div key={i} className="flex items-center gap-3 p-3 rounded-lg bg-[var(--color-surface-2)] border border-[var(--color-border-subtle)]">
-                <Badge variant={h.status === 'approved' ? 'success' : 'danger'}>
-                  {h.status}
-                </Badge>
-                <div className="flex-1 min-w-0">
-                  <span className="text-sm font-medium">{h.session_id}</span>
-                  <span className="text-xs text-[var(--color-text-muted)] ml-2">{h.reason}</span>
+            {rescheduleHistory.map((historyEntry, i) => {
+              const h = historyEntry as ProposalEntry;
+              const changes = h.changes ?? (h.old && h.new ? [{ session_id: h.session_id, old: h.old, new: h.new, reason: h.reason }] : []);
+              return (
+                <div key={h.id ?? i} className="p-3 rounded-lg bg-[var(--color-surface-2)] border border-[var(--color-border-subtle)] space-y-2">
+                  <div className="flex items-center gap-3">
+                    <span className={`px-2 py-0.5 rounded text-xs font-semibold ${h.status === 'approved' ? 'bg-[var(--color-success)]/15 text-[var(--color-success)]' : h.status === 'pending' ? 'bg-[var(--color-warning)]/15 text-[var(--color-warning)]' : 'bg-[var(--color-danger)]/15 text-[var(--color-danger)]'}`}>
+                      {h.status}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <span className="text-sm font-medium">{h.session_id}</span>
+                      <span className="text-xs text-[var(--color-text-muted)] ml-2">{h.reason}</span>
+                    </div>
+                    <span className="text-xs text-[var(--color-text-muted)]">{new Date(h.timestamp).toLocaleTimeString()}</span>
+                  </div>
+                  {changes.map(change => (
+                    <div key={change.session_id} className="text-xs text-[var(--color-text-secondary)] rounded bg-[var(--color-surface)] px-3 py-2">
+                      <span className="font-medium">{change.session_id}: </span>
+                      {change.old.day} P{change.old.start_period} / {change.old.room_id}
+                      <span className="mx-2">→</span>
+                      {change.new.day} P{change.new.start_period} / {change.new.room_id}
+                      <span className="block mt-1 text-[var(--color-text-muted)]">{change.reason}</span>
+                    </div>
+                  ))}
+                  {h.conflicts && h.conflicts.length > 0 && (
+                    <div className="text-xs text-[var(--color-danger)]">{h.conflicts.join('; ')}</div>
+                  )}
+                  {h.status === 'pending' && h.id && (
+                    <div className="flex gap-2 pt-1">
+                      <Button onClick={() => decideReschedule(h.id!, 'approved')} loading={decidingId === h.id} variant="primary">Approve (Admin)</Button>
+                      <Button onClick={() => decideReschedule(h.id!, 'rejected')} loading={decidingId === h.id} variant="danger">Reject</Button>
+                    </div>
+                  )}
+                  {h.decided_by && <div className="text-xs text-[var(--color-text-muted)]">Decided by {h.decided_by}</div>}
                 </div>
-                {h.conflicts && h.conflicts.length > 0 && (
-                  <div className="text-xs text-[var(--color-danger)]">{h.conflicts.length} conflict(s)</div>
-                )}
-                <span className="text-xs text-[var(--color-text-muted)]">{new Date(h.timestamp).toLocaleTimeString()}</span>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </Card>

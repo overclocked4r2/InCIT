@@ -20,6 +20,7 @@ from .schemas import (
     ExamAssignment,
     DashboardStats,
     RescheduleRequest, RescheduleResponse,
+    ApprovalRequest,
     AuditEventOut,
     ScheduleExport,
     DisruptionRequest,
@@ -616,46 +617,31 @@ def request_reschedule(req: RescheduleRequest):
                 conflicts.append(f"Group conflict ({', '.join(common_groups)}) with {sid}")
     
     if conflicts:
-        state.reschedule_requests.append({
-            "session_id": req.session_id,
-            "status": "rejected",
-            "reason": req.reason,
-            "conflicts": conflicts,
-            "timestamp": datetime.now().isoformat(),
-        })
-        state.add_audit("reschedule_rejected", "session", req.session_id,
-                       details={"conflicts": conflicts, "reason": req.reason})
+        proposal = state.propose_reschedule(
+            req.session_id, req.new_day, req.new_start_period, req.new_room_id, req.reason,
+        )
+        proposal["conflicts"] = conflicts
+        state.decide_reschedule(
+            proposal["id"], "rejected", actor="system", comments="; ".join(conflicts),
+        )
         return RescheduleResponse(
             success=False,
             message=f"Reschedule rejected: {'; '.join(conflicts)}",
             conflicts=conflicts,
             old_assignment=TimetableAssignment(**old),
+            changes=proposal["changes"],
         )
     
-    # Apply the reschedule
-    state.apply_reschedule(req.session_id, req.new_day, req.new_start_period, req.new_room_id)
-    
-    new = state.assignments[req.session_id]
-    state.reschedule_requests.append({
-        "session_id": req.session_id,
-        "status": "approved",
-        "reason": req.reason,
-        "old": old,
-        "new": new,
-        "timestamp": datetime.now().isoformat(),
-    })
+    proposal = state.propose_reschedule(
+        req.session_id, req.new_day, req.new_start_period, req.new_room_id, req.reason,
+    )
     
     return RescheduleResponse(
         success=True,
-        message=f"Session {req.session_id} rescheduled successfully.",
+        message=f"Reschedule proposal for {req.session_id} is pending Admin approval.",
         old_assignment=TimetableAssignment(**old),
-        new_assignment=TimetableAssignment(**new),
-        changes=[{
-            "session_id": req.session_id,
-            "old": old,
-            "new": new,
-            "reason": req.reason,
-        }],
+        new_assignment=TimetableAssignment(**proposal["new"]),
+        changes=proposal["changes"],
     )
 
 
@@ -663,6 +649,29 @@ def request_reschedule(req: RescheduleRequest):
 def reschedule_history():
     """Get reschedule request history."""
     return state.reschedule_requests
+
+
+@app.post("/api/reschedule/{request_id}/decision")
+def decide_reschedule(request_id: str, req: ApprovalRequest):
+    """Approve or reject a pending proposal. Login-based identity arrives in Step 6."""
+    try:
+        proposal = state.decide_reschedule(
+            request_id, req.decision, actor="Admin (demo)", comments=req.comments,
+        )
+    except KeyError as exc:
+        raise HTTPException(404, str(exc))
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
+    except Exception as exc:
+        # The state setter has already kept the timetable unchanged if the
+        # deterministic validity gate rejects the proposed move.
+        raise HTTPException(400, f"Approval blocked by validity gate: {exc}")
+
+    return {
+        "status": proposal["status"],
+        "message": f"Reschedule proposal {proposal['status']}.",
+        "proposal": proposal,
+    }
 
 
 # ============================================================

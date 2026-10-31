@@ -154,6 +154,70 @@ class AppState:
         self.assignments = candidate
         self.add_audit("session_rescheduled", "session", session_id,
                        details={"old": old, "new": self.assignments[session_id]})
+
+    def propose_reschedule(self, session_id: str, new_day: str, new_start: int,
+                           new_room: str, reason: str) -> dict:
+        """Store a proposed move without changing the published timetable."""
+        old = self.assignments[session_id].copy()
+        proposal = {
+            "id": str(uuid.uuid4()),
+            "session_id": session_id,
+            "status": "pending",
+            "reason": reason,
+            "old": old,
+            "new": {
+                "session_id": session_id,
+                "day": new_day,
+                "start_period": new_start,
+                "room_id": new_room,
+            },
+            "changes": [{
+                "session_id": session_id,
+                "old": old,
+                "new": {
+                    "session_id": session_id,
+                    "day": new_day,
+                    "start_period": new_start,
+                    "room_id": new_room,
+                },
+                "reason": reason,
+            }],
+            "timestamp": datetime.now().isoformat(),
+        }
+        self.reschedule_requests.append(proposal)
+        self.add_audit("reschedule_proposed", "session", session_id,
+                       details={"request_id": proposal["id"], "old": old, "new": proposal["new"], "reason": reason})
+        return proposal
+
+    def decide_reschedule(self, request_id: str, decision: str, *, actor: str,
+                          comments: str = "") -> dict:
+        """Approve or reject one pending proposal; approval passes the validity gate first."""
+        proposal = next((item for item in self.reschedule_requests if item["id"] == request_id), None)
+        if proposal is None:
+            raise KeyError("Reschedule proposal not found.")
+        if proposal["status"] != "pending":
+            raise ValueError(f"Reschedule proposal is already {proposal['status']}.")
+        if decision not in {"approved", "rejected"}:
+            raise ValueError("Decision must be 'approved' or 'rejected'.")
+
+        if decision == "approved":
+            # The assignments setter runs the deterministic validity gate before
+            # this proposal is marked approved or any timetable data is changed.
+            candidate = dict(self.assignments)
+            candidate[proposal["session_id"]] = proposal["new"]
+            self.assignments = candidate
+
+        proposal["status"] = decision
+        proposal["decided_at"] = datetime.now().isoformat()
+        proposal["decided_by"] = actor
+        if decision == "approved":
+            proposal["approved_by"] = actor
+        proposal["comments"] = comments
+        self.add_audit(
+            f"reschedule_{decision}", "session", proposal["session_id"], actor=actor,
+            details={"request_id": request_id, "old": proposal["old"], "new": proposal["new"], "comments": comments},
+        )
+        return proposal
     
     def export_schedule(self, team: str = "InCIT", dataset_id: str = "cit-public-v1") -> dict:
         """Export current state as schedule.json format."""

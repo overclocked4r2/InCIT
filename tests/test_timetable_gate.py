@@ -110,6 +110,52 @@ def test_state_rejects_an_invalid_manual_reschedule_without_changing_it():
     assert state.assignments["B"] == {"session_id": "B", "day": "MON", "start_period": 2, "room_id": "R4"}
 
 
+def _state_with_valid_timetable():
+    state = AppState()
+    state.dataset = sample_data()
+    state.assignments = {item["session_id"]: item for item in valid_schedule()["sessions"]}
+    return state
+
+
+def test_reschedule_proposal_does_not_change_the_timetable_until_admin_approves():
+    state = _state_with_valid_timetable()
+    before = deepcopy(state.assignments)
+
+    proposal = state.propose_reschedule("B", "FRI", 1, "R4", "Requested room change")
+
+    assert proposal["status"] == "pending"
+    assert state.assignments == before
+    approved = state.decide_reschedule(proposal["id"], "approved", actor="Admin (demo)")
+    assert approved["status"] == "approved"
+    assert approved["approved_by"] == "Admin (demo)"
+    assert state.assignments["B"] == proposal["new"]
+    assert state.audit_log[-1]["action"] == "reschedule_approved"
+    assert state.audit_log[-1]["actor"] == "Admin (demo)"
+
+
+def test_rejected_reschedule_proposal_does_not_change_the_timetable():
+    state = _state_with_valid_timetable()
+    before = deepcopy(state.assignments)
+
+    proposal = state.propose_reschedule("B", "FRI", 1, "R4", "Not needed")
+    rejected = state.decide_reschedule(proposal["id"], "rejected", actor="Admin (demo)")
+
+    assert rejected["status"] == "rejected"
+    assert state.assignments == before
+
+
+def test_approval_runs_the_validity_gate_before_changing_the_timetable():
+    state = _state_with_valid_timetable()
+    before = deepcopy(state.assignments)
+    proposal = state.propose_reschedule("B", "MON", 1, "R1", "Deliberately clashes")
+
+    with pytest.raises(ValueError, match="validity gate"):
+        state.decide_reschedule(proposal["id"], "approved", actor="Admin (demo)")
+
+    assert proposal["status"] == "pending"
+    assert state.assignments == before
+
+
 def test_state_rejects_an_invalid_booking_before_storing_it():
     state = AppState()
     state.dataset = sample_data()
