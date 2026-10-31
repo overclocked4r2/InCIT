@@ -40,9 +40,10 @@ LUNCH_AFTER = 5  # lunch is after period 5, before period 6
 LAB_STARTS = {2, 6}
 
 
-def solve_timetable(data: dict, *, time_limit_seconds: int = 120, num_workers: int = 8) -> SolverResult:
+def solve_timetable(data: dict, *, time_limit_seconds: int = 60, num_workers: int = 8) -> SolverResult:
     """Run the CP-SAT solver on the CIT dataset and return assignments."""
     t0 = time.time()
+    time_limit_seconds = max(1, min(time_limit_seconds, 60))
     
     rooms = {r["id"]: r for r in data["rooms"]}
     faculty = {f["id"]: f for f in data["faculty"]}
@@ -308,6 +309,85 @@ def solve_timetable(data: dict, *, time_limit_seconds: int = 120, num_workers: i
     
     # Soft objectives
     soft_penalties = []
+
+    # A group is occupied in a period if any of its sessions is assigned there.
+    # This also handles elective baskets correctly: simultaneous basket sessions
+    # still count as one occupied period for the group.
+    group_occupied: dict[tuple[str, int, int], Any] = {}
+    for gid, g_sessions in group_sessions.items():
+        for d in range(5):
+            for p in range(1, LAST_TEACHING + 1):
+                occupied_by = []
+                for s in g_sessions:
+                    sid = s["id"]
+                    for start_p in valid_starts[sid]:
+                        if p not in range(start_p, start_p + s["duration"]):
+                            continue
+                        for ri in range(len(compatible_rooms[sid])):
+                            var = x.get((sid, d, start_p, ri))
+                            if var is not None:
+                                occupied_by.append(var)
+                occupied = model.new_bool_var(f"group_occupied_{gid}_{d}_{p}")
+                if occupied_by:
+                    model.add_max_equality(occupied, occupied_by)
+                else:
+                    model.add(occupied == 0)
+                group_occupied[(gid, d, p)] = occupied
+
+    # S2: a free teaching period between two classes for the same group costs 1.
+    for gid in group_sessions:
+        for d in range(5):
+            for p in range(2, LAST_TEACHING):
+                before = model.new_bool_var(f"group_before_{gid}_{d}_{p}")
+                after = model.new_bool_var(f"group_after_{gid}_{d}_{p}")
+                model.add_max_equality(before, [group_occupied[(gid, d, q)] for q in range(1, p)])
+                model.add_max_equality(after, [group_occupied[(gid, d, q)] for q in range(p + 1, LAST_TEACHING + 1)])
+                gap = model.new_bool_var(f"group_gap_{gid}_{d}_{p}")
+                model.add_bool_and([before, after, group_occupied[(gid, d, p)].negated()]).only_enforce_if(gap)
+                model.add_bool_or([before.negated(), after.negated(), group_occupied[(gid, d, p)], gap])
+                soft_penalties.append(gap)
+
+    # S3: more than six occupied class hours in a group-day costs 3 per hour.
+    for gid in group_sessions:
+        for d in range(5):
+            hours = sum(group_occupied[(gid, d, p)] for p in range(1, LAST_TEACHING + 1))
+            excess = model.new_int_var(0, LAST_TEACHING - 6, f"group_excess_{gid}_{d}")
+            model.add(excess >= hours - 6)
+            soft_penalties.append(excess * 3)
+
+    # S4: repeated non-basket lectures of a course for a group-day cost 3 each.
+    group_course_sessions: dict[tuple[str, str], list[dict]] = defaultdict(list)
+    basket_course_sessions: dict[str, list[dict]] = defaultdict(list)
+    for s in sessions:
+        if s.get("basket_slot"):
+            basket_course_sessions[s["course_id"]].append(s)
+        elif s["kind"] == "lecture":
+            for gid in s["groups"]:
+                group_course_sessions[(gid, s["course_id"])].append(s)
+
+    def assigned_on_day(session: dict, day: int) -> list[Any]:
+        return [
+            var for (sid, d, _start, _room), var in x.items()
+            if sid == session["id"] and d == day
+        ]
+
+    for (_gid, _course), course_sessions in group_course_sessions.items():
+        if len(course_sessions) < 2:
+            continue
+        for d in range(5):
+            repeats = model.new_int_var(0, len(course_sessions) - 1, f"course_repeat_{_gid}_{_course}_{d}")
+            model.add(repeats >= sum(var for s in course_sessions for var in assigned_on_day(s, d)) - 1)
+            soft_penalties.append(repeats * 3)
+
+    # The official validator applies the same repeated-course penalty to basket
+    # lectures by course and day, without counting a group twice.
+    for course, course_sessions in basket_course_sessions.items():
+        if len(course_sessions) < 2:
+            continue
+        for d in range(5):
+            repeats = model.new_int_var(0, len(course_sessions) - 1, f"basket_repeat_{course}_{d}")
+            model.add(repeats >= sum(var for s in course_sessions for var in assigned_on_day(s, d)) - 1)
+            soft_penalties.append(repeats * 3)
     
     # S1: Faculty preference violations (avoid certain periods)
     for s in sessions:
@@ -408,5 +488,6 @@ def solve_timetable(data: dict, *, time_limit_seconds: int = 120, num_workers: i
             "assigned_sessions": len(assignments),
             "solver_status_raw": str(status),
             "objective_value": solver.objective_value if status in (cp_model.OPTIMAL, cp_model.FEASIBLE) else None,
+            "time_limit_seconds": time_limit_seconds,
         },
     )
