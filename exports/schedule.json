@@ -1141,12 +1141,8 @@
     "bookings": [
       {
         "request_id": "BR-01",
-        "status": "alternative_offered",
-        "day": "MON",
-        "start_period": 1,
-        "end_period": 2,
-        "room_id": "AUD",
-        "reason": "original windows were not available; placed at MON P1-P2"
+        "status": "rejected",
+        "reason": "The requested room is occupied and the affected class cannot be moved safely."
       },
       {
         "request_id": "BR-11a",

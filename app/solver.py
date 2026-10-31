@@ -46,8 +46,14 @@ def solve_timetable(
     time_limit_seconds: int = 60,
     num_workers: int = 8,
     baseline_assignments: dict[str, dict[str, Any]] | list[dict[str, Any]] | None = None,
+    locked_session_ids: set[str] | None = None,
 ) -> SolverResult:
-    """Run the CP-SAT solver, preserving an optional existing timetable when possible."""
+    """Run the CP-SAT solver, preserving an optional existing timetable when possible.
+
+    ``locked_session_ids`` makes selected baseline assignments hard constraints.
+    It is useful for a small disruption: unaffected classes no longer enlarge the
+    search, while affected classes remain free for the solver to repair.
+    """
     t0 = time.time()
     time_limit_seconds = max(1, min(time_limit_seconds, 60))
     
@@ -206,6 +212,26 @@ def solve_timetable(
                 "movement_optimised": bool(baseline_by_session),
             },
         )
+
+    # A disruption normally invalidates only a few existing assignments.  Lock
+    # every known-safe baseline assignment so CP-SAT searches for repairs rather
+    # than repeatedly rediscovering a whole 189-session timetable.
+    locked_session_ids = locked_session_ids or set()
+    locked_sessions = 0
+    for sid in locked_session_ids:
+        old = baseline_by_session.get(sid)
+        if old is None or sid not in compatible_rooms:
+            continue
+        try:
+            old_day = DAY_IDX[old["day"]]
+            old_start = old["start_period"]
+            old_room_index = compatible_rooms[sid].index(old["room_id"])
+        except (KeyError, ValueError):
+            continue
+        old_var = x.get((sid, old_day, old_start, old_room_index))
+        if old_var is not None:
+            model.add(old_var == 1)
+            locked_sessions += 1
     
     # No-overlap constraints
     # Group sessions by potential conflicts
@@ -520,6 +546,7 @@ def solve_timetable(
                 "solver_status_raw": str(status),
                 "time_limit_seconds": time_limit_seconds,
                 "movement_optimised": bool(baseline_by_session),
+                "locked_sessions": locked_sessions,
             },
         )
     
@@ -561,6 +588,7 @@ def solve_timetable(
             "objective_value": solver.objective_value if status in (cp_model.OPTIMAL, cp_model.FEASIBLE) else None,
             "time_limit_seconds": time_limit_seconds,
             "movement_optimised": bool(baseline_by_session),
+            "locked_sessions": locked_sessions,
             "moved_sessions": moved_sessions,
             "unchanged_sessions": len(baseline_by_session) - moved_sessions if baseline_by_session else 0,
         },

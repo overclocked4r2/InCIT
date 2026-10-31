@@ -128,3 +128,10 @@ If a step is too big for your remaining tokens, do the first half, write exactly
 **Edit**: `exports/` (by running the app only), STATE.md.
 **Do**: regenerate `exports/schedule.json` and `exports/schedule_after.json` by running the app, run the official validator on both, deploy, test the live link and all four logins, then give the owner the video checklist (generate timetable, plain-language request becoming a booking, a conflict blocked, Spectra decisions, a reschedule with diff and approval, dashboard).
 **Done when**: 0 hard violations on both files, the live link works, and the owner has the video checklist. After this, **no more commits**.
+
+## Step 12a: Sample-disruption solver repair (MEDIUM, owner-approved)
+**Goal**: make the sample disruption produce a valid stable timetable before deployment work continues.
+**Read**: `app/solver.py`, the solver/disruption routes in `app/main.py`, `tests/solver_e2e.py`, and the organiser sample disruption (read-only).
+**Edit**: `app/solver.py`, `app/main.py` only if needed for the solve path, `tests/`, `exports/schedule_after.json` (only by running the app), STATE.md.
+**Do**: explain the `unknown` result in plain words, reduce the search so unaffected sessions stay in place and only affected sessions can move where possible, add a regression test, regenerate only `schedule_after.json` through the running app, and run the official validator.
+**Done when**: the sample disruption generates within the solver limit, the official validator reports 0 hard violations, a regression test covers it, and `schedule.json` is unchanged.

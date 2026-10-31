@@ -3,10 +3,10 @@
 Keep this file short. Replace old text instead of adding to it.
 
 ## Current step
-**Step 12** (not started). See `handoff/PLAN.md`.
+**Step 12** (in progress). Deployment preparation is next when the owner says "continue".
 
 ## IN PROGRESS
-(nothing. Before each change, write one line here: what and which files. Clear it when done.)
+(nothing. Step 12a is complete. Do not start deployment preparation until the owner says "continue".)
 
 ## Done
 - Removed the pre-approved student portal, its tests, screenshots, routes, UI, and README text.
@@ -34,6 +34,7 @@ Keep this file short. Replace old text instead of adding to it.
 - Completed Step 9b faculty assistant and explanations: a strict Gemini change draft goes to the solver, then the deterministic validity gate, and finally the existing Admin approval gate. Class and booking “why” answers are built from reason codes and fall back to those codes when Gemini is unavailable. All 75 tests and the frontend build pass.
 - Completed Step 10 role-aware frontend: the four roles see focused navigation and dashboard actions, timetable filters cover room/faculty/group views, Admin controls are not shown to read-only roles, and narrow screens use horizontal navigation plus a scrollable timetable with a fixed period label. Frontend build passes.
 - Completed Step 11 documentation: replaced stale benchmark and feature claims with a clean-machine README, current architecture diagram, setup/check commands, demo accounts, validator instructions, and honest limitations. Reconciled `AI_USAGE.md` with the AI log; 75 tests and the frontend build pass.
+- Completed owner-approved Step 12a solver repair: the disruption solver locks 176 unaffected sessions, then repairs only the impacted/new sessions. The fresh `schedule_after.json` has 0 hard violations, soft penalty 3, and 13 moves (7 time, 6 room-only); all 77 tests pass.
 
 ## Decided by the owner: follow the PS
 - The problem statement decides every product question. Do not ask the owner to choose features. If the PS is silent, pick the simplest option that satisfies it and note it under "Decisions made".
@@ -46,8 +47,8 @@ Keep this file short. Replace old text instead of adding to it.
 - Deployed link and host, if any: none yet (deployment is planned for Step 12).
 
 ## Baseline numbers (measured when the handoff was written; re-measure and replace after each step that changes them)
-- `exports/schedule.json`: hard violations 0, soft penalty 3 (S1=0, S2=0, S3=0, S4=3, S5=0, S6=0), booking score 63.0 (20 approved, 3 alternatives, 2 rejected, 0 priority inversions), exam soft penalty 0. Rechecked by the official validator in Step 7. Solver time: 44.33 seconds (60-second cap).
-- `exports/schedule_after.json` (sample disruption): hard violations 0, soft penalty 230, booking score 63.0, **185 sessions moved (target: a handful)**.
+- `exports/schedule.json`: regenerated through the app in partial Step 12; hard violations 0, soft penalty 3 (S1=0, S2=0, S3=0, S4=3, S5=0, S6=0), booking score 60.5 (20 approved, 2 alternatives, 3 rejected, 0 priority inversions), exam soft penalty 0.
+- `exports/schedule_after.json` (sample disruption): regenerated through the app in Step 12a; hard violations 0, soft penalty 3 (S1=0, S2=0, S3=0, S4=3, S5=0, S6=0), booking score 60.5 (20 approved, 2 alternatives, 3 rejected, 0 priority inversions), exam soft penalty 0, **13 sessions moved** (7 time, 6 room-only).
 - Step 4 generated sample result (not written to `exports/`): official validator hard violations 0, soft penalty 3, **13 sessions moved** (7 time changes, 6 room-only); solve time 24.47 seconds.
 
 ## Commands (fill the paths in during Step 0)
@@ -77,9 +78,11 @@ Keep this file short. Replace old text instead of adding to it.
 - Step 9b freezes other class times while the solver finds a compatible room for the requested class; its result is checked against the live timetable before a pending proposal is recorded.
 - Step 10 keeps the API as the authority for permissions; hiding an unsuitable frontend action improves clarity but does not replace backend role checks.
 - Step 11 documents the organiser validator through a user-provided `STARTER_PACK` environment variable so no owner-specific path appears in the README.
+- Step 12 leaves `schedule_after.json` unchanged rather than hand-editing or exporting an invalid result when the disruption solver returns `unknown`.
+- Step 12a: `unknown` meant the old solver had not found even one valid answer before the time limit because it was still searching placements for every existing class alongside soft-score optimisation. The repair locks current assignments that the disruption does not touch, leaving only affected and new sessions to search; an infeasible direct repair still retries without locks.
 - The later user-requested UI steps are tracked in `HANDOFF.md`; do not start them until the owner says "continue".
 
 ## Known issues / watch out
 - The ignored local runtime leftovers (`.freebuff`, caches, logs, database, and build output) are not tracked; `frontend/dist` is regenerated by the required build check.
 - The literal Step 1 path grep cannot be empty because `handoff/PLAN.md` and `handoff/PROJECT_BRIEF.md` intentionally contain `C:\Users` examples, and `STATE.md` must retain the owner's exact path.
-- `exports/schedule_after.json` is intentionally still the old 185-move baseline because this step may not edit exports; regenerate it through the app in Step 12.
+- Step 12a generated the valid disruption export. Step 12 still needs deployment preparation and a configured host/account; do not hand-edit either export.

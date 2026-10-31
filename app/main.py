@@ -156,6 +156,37 @@ def _apply_disruption(data: dict, dis: dict) -> dict:
     return d
 
 
+def _unaffected_baseline_session_ids(
+    data: dict,
+    baseline: dict[str, dict[str, Any]],
+    disruption: dict[str, Any],
+) -> set[str]:
+    """Return baseline sessions whose current slot is untouched by a disruption."""
+    sessions = {session["id"]: session for session in data["sessions"]}
+    affected: set[str] = set()
+    for change in disruption.get("changes", []):
+        change_type = change.get("type")
+        if change_type == "remove_session":
+            affected.add(str(change.get("session_id", "")))
+            continue
+        if change_type not in {"faculty_unavailable", "room_unavailable"}:
+            continue
+        changed_days = set(change.get("days", []))
+        changed_periods = set(change.get("periods", []))
+        for session_id, assignment in baseline.items():
+            session = sessions.get(session_id)
+            if session is None or assignment.get("day") not in changed_days:
+                continue
+            occupied = range(assignment["start_period"], assignment["start_period"] + session["duration"])
+            if not set(occupied).intersection(changed_periods):
+                continue
+            if change_type == "faculty_unavailable" and session["faculty_id"] == change.get("faculty_id"):
+                affected.add(session_id)
+            if change_type == "room_unavailable" and assignment.get("room_id") == change.get("room_id"):
+                affected.add(session_id)
+    return (set(baseline) & set(sessions)) - affected
+
+
 # ============================================================
 # Dataset endpoints
 # ============================================================
@@ -289,8 +320,10 @@ def generate_timetable(req: SolverRequest | None = None, authorization: str | No
     
     # Apply disruption if one is active
     effective_data = data
+    locked_session_ids: set[str] | None = None
     if state.disruption_applied and state.disruption_data:
         effective_data = _apply_disruption(data, state.disruption_data)
+        locked_session_ids = _unaffected_baseline_session_ids(data, baseline, state.disruption_data)
     
     state.timetable_status = "generating"
     
@@ -301,13 +334,35 @@ def generate_timetable(req: SolverRequest | None = None, authorization: str | No
             time_limit_seconds=req.time_limit_seconds,
             num_workers=req.num_workers,
             baseline_assignments=baseline or None,
+            locked_session_ids=locked_session_ids,
         )
+
+        # If direct repairs genuinely cannot fit around locked classes, retry
+        # with the original stable, move-minimising model. Unknown is not
+        # retried because the locked model is already the smaller search.
+        if result.status == "infeasible" and locked_session_ids:
+            result = solve_timetable(
+                effective_data,
+                time_limit_seconds=req.time_limit_seconds,
+                num_workers=req.num_workers,
+                baseline_assignments=baseline or None,
+            )
+            result.stats["retried_without_stable_locks"] = True
         
         if result.status in ("optimal", "feasible"):
-            state.set_assignments(result.assignments, result.status)
-            
-            # Also process bookings and exams
-            _process_bookings_and_exams(effective_data)
+            # The state gate must validate against the same disrupted dataset
+            # that the solver used. This matters when a disruption adds a
+            # session: validating against the untouched cached dataset would
+            # wrongly call that real session "unknown".
+            original_dataset = state.dataset
+            state.dataset = effective_data
+            try:
+                state.set_assignments(result.assignments, result.status)
+                _process_bookings_and_exams(effective_data)
+            finally:
+                # Keep the canonical dataset cached. Read-only endpoints and
+                # validation rebuild the effective disruption dataset as needed.
+                state.dataset = original_dataset
         else:
             state.solver_status = result.status
             state.timetable_status = "not_generated"
