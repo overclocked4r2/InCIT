@@ -3,9 +3,9 @@
 ## Current status
 
 This is the current continuation note. Read this and `handoff/STATE.md` before
-resuming. The product work in this session is complete and verified. Step 12
-deployment is the only known external blocker: it needs the owner's Render
-service/account or an existing live URL.
+resuming. The product work is complete and verified. The owner deployed the
+app at https://incit.onrender.com; live health, login, role, mobile, dropdown,
+and WebGL checks passed. The final video/submission checklist remains.
 
 ## Completed in this session
 
@@ -89,13 +89,18 @@ service/account or an existing live URL.
   390×844 with no document overflow. The Three.js module is deferred; canvas backing size is
   292×633 at 390×844 CSS pixels. Vite reports its 743KB minified (188KB gzip)
   async chunk above the default 500KB warning threshold.
+- Live deployment at https://incit.onrender.com returns HTTP 200 for the app,
+  `/health`, and `/api/health`. All four demo roles authenticated and matched
+  `/api/auth/me`. The deployed bundle contains the optimized instanced Three.js
+  build; all seven staff routes fit 390px and manual select colors stay readable
+  in dark and light themes.
 
 ## Resume here
 
 1. Read `handoff/STATE.md` and inspect `git status`/`git diff`; this session's
    changes are intentionally uncommitted.
-2. Continue Step 12 only if the owner supplies Render access/service details or
-   a live URL. Do not claim deployment or live-login checks are complete.
+2. Deployment and live checks are complete at https://incit.onrender.com.
+   Finish the organizer video/submission checklist if requested.
 3. Keep `validator.py` and all organiser starter-pack files unchanged. Never
    edit schedule exports by hand; regenerate them through the app.
 4. Gemini is optional and the current shell does not have `GEMINI_API_KEY`.
