@@ -1,0 +1,15 @@
+name: incit
+
+services:
+  incit:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: incit:latest
+    container_name: incit
+    init: true
+    ports:
+      - "8000:8000"
+    environment:
+      INCIT_TEAM: InCIT
+    restart: unless-stopped

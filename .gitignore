@@ -1,0 +1,15 @@
+.freebuff/
+.venv/
+.pytest_cache/
+__pycache__/
+*.py[cod]
+*.db
+*.sqlite3
+frontend/dist/
+frontend/node_modules/
+.DS_Store
+
+# Local runtime state
+server-*.log
+*.log
+data/portal_state.json

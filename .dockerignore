@@ -1,0 +1,27 @@
+# Version control and local environment
+.git
+.gitignore
+.github
+.venv
+__pycache__
+**/__pycache__
+*.py[cod]
+.pytest_cache
+.mypy_cache
+.ruff_cache
+
+# Frontend dependencies and build output (rebuilt inside the image)
+frontend/node_modules
+frontend/dist
+
+# Local-only artifacts
+*.db
+*.log
+.env
+.env.*
+data/portal_state.json
+.agents
+screenshots
+tests
+docs
+*.md
