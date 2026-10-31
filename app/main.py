@@ -2,6 +2,7 @@
 from __future__ import annotations
 import copy
 import json
+import re
 import traceback
 from datetime import datetime
 from pathlib import Path
@@ -43,6 +44,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Short-lived, in-memory context for one user's booking conversation. It only
+# stores an editable draft and factual outcome; it never approves a booking.
+_booking_chat_context: dict[str, dict[str, Any]] = {}
 
 
 def _require_action(authorization: str | None, action: str):
@@ -387,6 +392,32 @@ def get_timetable(
             "room_type": r.get("type"),
             "room_capacity": r.get("capacity"),
         })
+
+    visible_live_bookings = 0
+    for booking in state.live_bookings:
+        if day and booking["day"] != day:
+            continue
+        if room_id and booking["room_id"] != room_id:
+            continue
+        # Live room bookings have no faculty or group, so these filters hide
+        # them rather than incorrectly attaching them to a class.
+        if faculty_id or group_id:
+            continue
+        room = rooms_map.get(booking["room_id"], {})
+        enriched.append({
+            "session_id": booking["id"],
+            "day": booking["day"],
+            "start_period": booking["start_period"],
+            "room_id": booking["room_id"],
+            "course_id": booking.get("title") or "Room booking",
+            "kind": "booking",
+            "groups": [],
+            "duration": booking["end_period"] - booking["start_period"] + 1,
+            "room_name": room.get("name", booking["room_id"]),
+            "room_type": room.get("type"),
+            "room_capacity": room.get("capacity"),
+        })
+        visible_live_bookings += 1
     
     return {
         "status": state.timetable_status,
@@ -394,7 +425,9 @@ def get_timetable(
         "version": state.version,
         "generated_at": state.generated_at,
         "published_at": state.published_at,
-        "total_assignments": len(state.assignments),
+        "total_assignments": len(state.assignments) + len(state.live_bookings),
+        "live_booking_count": len(state.live_bookings),
+        "visible_live_booking_count": visible_live_bookings,
         "assignments": enriched,
     }
 
@@ -459,7 +492,15 @@ def reprocess_bookings():
 @app.post("/api/manual-booking")
 def create_manual_booking(req: dict[str, Any], authorization: str | None = Header(default=None)):
     """Check a structured booking form with the deterministic booking gate."""
-    user = _require_action(authorization, "request_booking")
+    try:
+        user = user_from_authorization(authorization)
+    except PermissionError as exc:
+        raise HTTPException(401, str(exc))
+    if user.role not in {"club_representative", "admin"}:
+        return {
+            "status": "not_allowed",
+            "message": "Only a Club representative or Admin can create the final booking. You can still use the assistant to prepare a draft.",
+        }
     if not state.assignments:
         raise HTTPException(400, "No timetable is available yet. Generate one first.")
 
@@ -515,23 +556,49 @@ def parse_natural_language(req: NLParseRequest):
 
 @app.post("/api/nl-book")
 def nl_book(req: NLParseRequest, authorization: str | None = Header(default=None)):
-    """Parse NL text and attempt to create a booking against current timetable."""
-    user = _require_action(authorization, "request_booking")
-    from .nl_parser import parse_booking_request
+    """Chat with any signed-in user; only final booking creation has a role check."""
+    try:
+        user = user_from_authorization(authorization)
+    except PermissionError as exc:
+        raise HTTPException(401, str(exc))
+
+    contextual_reply = _booking_contextual_reply(req.text, user.username)
+    if contextual_reply:
+        return {"status": "assistant", "message": contextual_reply, "mode": "basic"}
+
+    has_pending_draft = _booking_chat_context.get(user.username, {}).get("last_status") == "needs_clarification"
+    if not has_pending_draft and not _looks_like_booking_request(req.text):
+        from .llm import chat_with_llm
+        ai_reply, _fallback_reason = chat_with_llm(req.text, user.role)
+        return {
+            "status": "assistant",
+            "message": ai_reply or _basic_chat_fallback(req.text),
+            "mode": "ai" if ai_reply else "basic",
+        }
+
+    from .nl_parser import _determine_follow_up, parse_booking_request
     parsed = parse_booking_request(req.text)
+    previous_draft = _booking_chat_context.get(user.username, {}).get("draft")
+    if previous_draft and _is_detail_follow_up(req.text):
+        parsed = _merge_booking_draft(previous_draft, parsed, _determine_follow_up)
+    draft_mode = "ai" if parsed.get("llm_used") else "basic"
     
     if parsed["follow_up"]:
+        _booking_chat_context[user.username] = {"draft": parsed, "last_status": "needs_clarification"}
         return {
             "status": "needs_clarification",
             "parsed": parsed,
             "follow_up": parsed["follow_up"],
+            "mode": draft_mode,
         }
     
     if not state.assignments:
+        _booking_chat_context[user.username] = {"draft": parsed, "last_status": "no_timetable"}
         return {
             "status": "no_timetable",
             "parsed": parsed,
             "message": "No timetable is available yet. Generate one first.",
+            "mode": draft_mode,
         }
     
     # Try to validate the booking
@@ -567,6 +634,11 @@ def nl_book(req: NLParseRequest, authorization: str | None = Header(default=None
             if b.get("status") in ("approved", "alternative_offered") and b.get("room_id"):
                 for p in range(b["start_period"], b["end_period"] + 1):
                     room_busy[(b["room_id"], b["day"], p)].append(b["request_id"])
+
+    # Previously approved chat bookings are real reservations too.
+    for booking in state.live_bookings:
+        for p in range(booking["start_period"], booking["end_period"] + 1):
+            room_busy[(booking["room_id"], booking["day"], p)].append(booking["id"])
     
     group_occ: dict[tuple[str, str, int], list[str]] = defaultdict(list)
     
@@ -595,31 +667,128 @@ def nl_book(req: NLParseRequest, authorization: str | None = Header(default=None
             if pref_room and "accessible" in needs and not pref_room.get("accessible"):
                 access_warning = f"{preferred} is not wheelchair accessible. {room_id} ({room.get('name')}) offered instead."
         
-        state.add_audit("booking_created", "nl_booking", "NL-LIVE", actor=user.username,
-                       details={"room": room_id, "day": day, "start": start_p, "end": end_p})
+        booking = {
+            "room_id": room_id,
+            "room_name": room.get("name", room_id),
+            "room_type": room.get("type"),
+            "room_capacity": room.get("capacity"),
+            "day": day,
+            "start_period": start_p,
+            "end_period": end_p,
+        }
+        if user.role not in {"club_representative", "admin"}:
+            _booking_chat_context[user.username] = {"draft": parsed, "last_status": "draft_ready", "booking": booking}
+            return {
+                "status": "assistant",
+                "parsed": parsed,
+                "booking": booking,
+                "message": "I prepared a room option, but only a Club representative or Admin can create the final booking. Please ask one of them to submit it.",
+                "accessibility_warning": access_warning,
+                "mode": draft_mode,
+            }
+
+        live_booking = state.add_live_booking({
+            **booking,
+            "title": parsed.get("title") or "Room booking",
+        }, actor=user.username)
+        booking["booking_id"] = live_booking["id"]
+        _booking_chat_context[user.username] = {"draft": parsed, "last_status": "approved", "booking": booking}
         
         return {
             "status": "approved" if is_exact else "alternative_offered",
             "parsed": parsed,
-            "booking": {
-                "room_id": room_id,
-                "room_name": room.get("name", room_id),
-                "room_type": room.get("type"),
-                "room_capacity": room.get("capacity"),
-                "day": day,
-                "start_period": start_p,
-                "end_period": end_p,
-            },
+            "booking": booking,
             "accessibility_warning": access_warning,
+            "mode": draft_mode,
         }
     else:
+        reason = "No suitable venue available for the requested time and requirements."
         state.add_audit("booking_rejected", "nl_booking", "NL-LIVE", actor=user.username,
-                       details={"reason": "No suitable venue available"})
+                       details={"reason": reason})
+        _booking_chat_context[user.username] = {"draft": parsed, "last_status": "rejected", "last_reason": reason}
         return {
             "status": "rejected",
             "parsed": parsed,
-            "message": "No suitable venue available for the requested time and requirements.",
+            "message": reason,
+            "mode": draft_mode,
         }
+
+
+def _is_detail_follow_up(text: str) -> bool:
+    """Recognize a reply such as '2 hours' without replacing the last draft."""
+    booking_starts = {"book", "need", "reserve", "find", "room", "hall", "lab", "classroom"}
+    words = set(text.lower().replace("?", " ").split())
+    return not words.intersection(booking_starts)
+
+
+def _merge_booking_draft(previous: dict[str, Any], update: dict[str, Any], follow_up_check) -> dict[str, Any]:
+    """Combine missing-detail replies with the existing editable draft."""
+    merged = copy.deepcopy(previous)
+    for field in ("attendance", "duration_periods", "requested_room", "title"):
+        if update.get(field) is not None:
+            merged[field] = update[field]
+    for field in ("windows", "needs", "mandatory_for_groups"):
+        if update.get(field):
+            merged[field] = update[field]
+    merged["assumptions"] = list(dict.fromkeys(previous.get("assumptions", []) + update.get("assumptions", [])))
+    merged["raw_text"] = f"{previous.get('raw_text', '')}\n{update.get('raw_text', '')}".strip()
+    merged["confidence"] = max(previous.get("confidence", 0), update.get("confidence", 0))
+    merged["llm_used"] = previous.get("llm_used", False) or update.get("llm_used", False)
+    merged["manual_form_message"] = update.get("manual_form_message") or previous.get("manual_form_message")
+    merged["follow_up"] = follow_up_check(merged)
+    return merged
+
+
+def _booking_contextual_reply(text: str, username: str) -> str | None:
+    """Answer factual follow-ups from the last deterministic booking result."""
+    context = _booking_chat_context.get(username)
+    if not context:
+        return None
+    message = text.strip().lower()
+    if context.get("last_status") == "rejected" and "why" in message:
+        return context["last_reason"]
+    if context.get("last_status") != "rejected" or not any(term in message for term in {"available", "alternative", "else", "instead"}):
+        return None
+
+    draft = context["draft"]
+    data = _load_dataset()
+    attendance = draft.get("attendance") or 0
+    needs = set(draft.get("needs", []))
+    fitting = []
+    for room in data["rooms"]:
+        features = set(room.get("features", [])) | ({"accessible"} if room.get("accessible") else set())
+        if "event" in room.get("allowed_uses", []) and room["capacity"] >= attendance and needs <= features:
+            fitting.append(room)
+    if not fitting:
+        largest = max((room for room in data["rooms"] if "event" in room.get("allowed_uses", [])), key=lambda room: room["capacity"])
+        return f"No event-capable room fits {attendance} people with those needs. The largest is {largest['id']} ({largest['capacity']} seats)."
+
+    names = ", ".join(f"{room['id']} ({room['capacity']} seats)" for room in sorted(fitting, key=lambda room: room["capacity"])[:3])
+    requested_types = set(draft.get("room_types", []))
+    if not any(room["type"] in requested_types for room in fitting):
+        return f"For {attendance} people, these rooms meet capacity: {names}. Your draft did not include their room type, so I did not claim they were free. Ask for one by name and InCIT will check it."
+    return f"These rooms meet the capacity and equipment needs: {names}. I could not confirm a free slot for the requested time; try another day or period and I’ll check it."
+
+
+def _looks_like_booking_request(text: str) -> bool:
+    """Route booking-shaped text to the structured parser, not general chat."""
+    text_lower = text.lower()
+    booking_words = {
+        "book", "booking", "reserve", "room", "hall", "auditorium", "lab", "classroom",
+        "seminar", "period", "students", "people", "participants", "attendees", "wheelchair",
+    }
+    if set(re.findall(r"[a-z]+", text_lower)).intersection(booking_words):
+        return True
+    return bool(re.search(r"\b(mon|tue|wed|thu|fri|monday|tuesday|wednesday|thursday|friday)\b", text_lower))
+
+
+def _basic_chat_fallback(text: str) -> str:
+    """One honest safety message when no LLM is available for free-form chat."""
+    return (
+        "AI chat is unavailable in Basic mode, so I can’t answer general questions reliably. "
+        "I can still process a room request using InCIT’s rules—for example: "
+        "‘Book a lab for 40 students on Thursday morning’."
+    )
 
 
 # ============================================================
@@ -720,6 +889,147 @@ def request_reschedule(req: RescheduleRequest, authorization: str | None = Heade
         new_assignment=TimetableAssignment(**proposal["new"]),
         changes=proposal["changes"],
     )
+
+
+def _solver_checked_faculty_proposal(draft: dict[str, Any], requested_by: str) -> RescheduleResponse:
+    """Ask the solver for one requested slot, then independently run the validity gate."""
+    session_id = str(draft["session_id"])
+    data = _load_dataset()
+    if session_id not in state.assignments:
+        raise HTTPException(404, f"Session {session_id} is not in the current timetable.")
+    if not any(session["id"] == session_id for session in data["sessions"]):
+        raise HTTPException(404, f"Session {session_id} is not in the dataset.")
+
+    # Freeze every currently scheduled class to its day and time. The solver may
+    # choose a compatible room for the requested class; it is never trusted to
+    # approve the change.
+    solver_data = copy.deepcopy(data)
+    for session in solver_data["sessions"]:
+        current = state.assignments.get(session["id"])
+        if current:
+            session["fixed_slot"] = {
+                "day": current["day"],
+                "start_period": current["start_period"],
+            }
+        if session["id"] == session_id:
+            session["fixed_slot"] = {
+                "day": draft["day"],
+                "start_period": draft["start_period"],
+            }
+
+    from .solver import solve_timetable
+    result = solve_timetable(
+        solver_data,
+        time_limit_seconds=10,
+        num_workers=1,
+        baseline_assignments=state.assignments,
+    )
+    if result.status not in {"optimal", "feasible"}:
+        detail = "; ".join(result.violations[:3]) or "No valid timetable fits that requested day and period."
+        raise HTTPException(400, f"Solver could not make a safe proposal: {detail}")
+
+    proposed = next((item for item in result.assignments if item["session_id"] == session_id), None)
+    if proposed is None:
+        raise HTTPException(400, "Solver returned no assignment for the requested class.")
+
+    # This is the single trusted gate. It intentionally checks the solver's
+    # returned change again against the live timetable before a proposal exists.
+    from .validator_bridge import check_timetable
+    candidate = dict(state.assignments)
+    candidate[session_id] = proposed
+    violations = check_timetable(list(candidate.values()), data)
+    if violations:
+        raise HTTPException(400, f"Proposal rejected by validity gate: {violations[0]['detail']}")
+
+    proposal = state.propose_reschedule(
+        session_id,
+        proposed["day"],
+        proposed["start_period"],
+        proposed["room_id"],
+        str(draft.get("reason") or "Faculty requested a timetable change."),
+        requested_by=requested_by,
+    )
+    return RescheduleResponse(
+        success=True,
+        message=f"Solver proposal for {session_id} is pending Admin approval.",
+        old_assignment=TimetableAssignment(**proposal["old"]),
+        new_assignment=TimetableAssignment(**proposal["new"]),
+        changes=proposal["changes"],
+    )
+
+
+@app.post("/api/faculty-change")
+def faculty_change_from_text(req: NLParseRequest, authorization: str | None = Header(default=None)):
+    """Create an approval-gated solver proposal from a faculty's plain-language request."""
+    user = _require_action(authorization, "request_reschedule")
+    from .llm import parse_faculty_change_with_llm
+
+    draft, error = parse_faculty_change_with_llm(req.text)
+    if draft is None:
+        return {"status": "manual_form", "message": error, "draft": None}
+    required = ("session_id", "day", "start_period")
+    if draft.get("follow_up") or any(draft.get(field) is None for field in required):
+        return {
+            "status": "needs_clarification",
+            "message": draft.get("follow_up") or "Please name the session, day, and start period.",
+            "draft": draft,
+        }
+    proposal = _solver_checked_faculty_proposal(draft, user.username)
+    return {"status": "pending", "draft": draft, "proposal": proposal.model_dump()}
+
+
+def _plain_explanation(reason_codes: list[dict[str, str]]) -> str:
+    return "\n".join(f"{item['code']}: {item['detail']}" for item in reason_codes)
+
+
+def _explanation_response(subject: str, reason_codes: list[dict[str, str]], facts: dict[str, Any]) -> dict[str, Any]:
+    """Phrase only facts supplied by code, with clear reason-code fallback."""
+    from .llm import phrase_explanation_with_llm
+
+    message, error = phrase_explanation_with_llm({"subject": subject, "reason_codes": reason_codes, **facts})
+    return {
+        "subject": subject,
+        "reason_codes": reason_codes,
+        "message": message or _plain_explanation(reason_codes),
+        "mode": "ai" if message else "code",
+        "fallback_reason": error,
+    }
+
+
+@app.get("/api/explain/class/{session_id}")
+def explain_class(session_id: str):
+    """Explain a class placement from recorded schedule facts, not an LLM guess."""
+    assignment = state.assignments.get(session_id)
+    if assignment is None:
+        raise HTTPException(404, f"Session {session_id} is not in the current timetable.")
+    session = next((item for item in _load_dataset()["sessions"] if item["id"] == session_id), None)
+    if session is None:
+        raise HTTPException(404, f"Session {session_id} is not in the dataset.")
+    codes = [{"code": "VALID_TIMETABLE_SLOT", "detail": "The timetable validity gate accepted this faculty, group, room, capacity, and availability combination."}]
+    fixed = session.get("fixed_slot")
+    if fixed and fixed.get("day") == assignment["day"] and fixed.get("start_period") == assignment["start_period"]:
+        codes.insert(0, {"code": "FIXED_SLOT", "detail": "The dataset fixes this class at this day and start period."})
+    elif assignment["start_period"] == 1:
+        codes.insert(0, {"code": "EARLY_VALID_SLOT", "detail": "Period 1 is an early teaching slot. The solver selected a valid slot; no more specific cause was recorded."})
+    else:
+        codes.insert(0, {"code": "SOLVER_VALID_SLOT", "detail": "The solver selected this valid slot while balancing the timetable's coded constraints and soft preferences."})
+    return _explanation_response("class", codes, {"session_id": session_id, "assignment": assignment})
+
+
+@app.get("/api/explain/booking/{request_id}")
+def explain_booking(request_id: str):
+    """Explain a booking outcome from the booking engine's stored decision."""
+    decisions = (state.fest_week or {}).get("bookings", [])
+    decision = next((item for item in decisions if item.get("request_id") == request_id), None)
+    if decision is None:
+        raise HTTPException(404, f"Booking {request_id} was not found.")
+    status = str(decision.get("status", "unknown"))
+    reason = str(decision.get("reason") or "The booking engine did not record a more specific reason.")
+    codes = [
+        {"code": f"BOOKING_{status.upper()}", "detail": f"The deterministic booking engine recorded this request as {status.replace('_', ' ')}."},
+        {"code": "BOOKING_ENGINE_REASON", "detail": reason},
+    ]
+    return _explanation_response("booking", codes, {"request_id": request_id, "decision": decision})
 
 
 @app.get("/api/reschedule/history")

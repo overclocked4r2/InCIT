@@ -73,6 +73,8 @@ export interface TimetableResponse {
   generated_at: string | null;
   published_at: string | null;
   total_assignments: number;
+  live_booking_count?: number;
+  visible_live_booking_count?: number;
   assignments: TimetableAssignment[];
 }
 
@@ -138,7 +140,7 @@ export interface NLParseResponse {
 
 export interface NLBookResponse {
   status: string;
-  parsed: NLParseResponse;
+  parsed?: NLParseResponse;
   booking?: {
     room_id: string;
     room_name: string;
@@ -151,6 +153,7 @@ export interface NLBookResponse {
   follow_up?: string;
   message?: string;
   accessibility_warning?: string | null;
+  mode?: 'ai' | 'basic';
 }
 
 /* Reschedule */

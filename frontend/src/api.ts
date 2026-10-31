@@ -56,9 +56,23 @@ export type ManualBookingRequest = {
 };
 
 export type ManualBookingResponse = {
-  status: 'approved' | 'rejected';
+  status: 'approved' | 'rejected' | 'not_allowed';
   message: string;
   booking?: { room_id: string; room_name: string; day: string; start_period: number; end_period: number; purpose: string };
+};
+
+export type FacultyChangeResponse = {
+  status: 'pending' | 'needs_clarification' | 'manual_form';
+  message?: string;
+  draft?: Record<string, unknown> | null;
+  proposal?: { message: string; changes: unknown[] };
+};
+
+export type ExplanationResponse = {
+  subject: string;
+  message: string;
+  mode: 'ai' | 'code';
+  reason_codes: Array<{ code: string; detail: string }>;
 };
 
 export const api = {
@@ -114,6 +128,10 @@ export const api = {
     request<NLParseResponse>('/nl-parse', { method: 'POST', body: JSON.stringify({ text }) }),
   nlBook: (text: string) =>
     request<NLBookResponse>('/nl-book', { method: 'POST', body: JSON.stringify({ text }) }),
+  facultyChange: (text: string) =>
+    request<FacultyChangeResponse>('/faculty-change', { method: 'POST', body: JSON.stringify({ text }) }),
+  explainClass: (sessionId: string) => request<ExplanationResponse>(`/explain/class/${encodeURIComponent(sessionId)}`),
+  explainBooking: (requestId: string) => request<ExplanationResponse>(`/explain/booking/${encodeURIComponent(requestId)}`),
 
   /* ── Rescheduling ── */
   reschedule: (data: RescheduleRequest) =>

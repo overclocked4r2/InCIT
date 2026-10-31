@@ -11,3 +11,10 @@
 - Codex, 2026-11-01, Step 7: corrected role-based booking priority, safe institute-event displacement, decision reasons, README wording, and tests; verified 47 tests and the organiser validator.
 - Codex, 2026-11-01, Step 8: added deterministic manual booking and session-change forms, named conflict responses, and no-LLM tests; verified 48 tests and the frontend build.
 - Codex, 2026-11-01, Step 9a: added the optional Gemini draft wrapper, strict schema, prompt, Hinglish assumptions, configuration declaration, adversarial parser tests, and a clear short-input message; verified 60 tests.
+- Codex, 2026-11-01, User UI Step 2: made booking chat role-friendly, reserved final booking creation for Admin and Club representative, and verified 64 tests and the frontend build.
+- Codex, 2026-11-01, User UI Step 2b: added optional Gemini general-chat mode, role-aware Basic fallback, console logging, mode badges, and tests; verified 65 tests and the frontend build.
+- Codex, 2026-11-01, User UI Step 2c: diagnosed the missing current-shell Gemini key, added exact fallback console logs and non-repeating Basic replies, and verified 67 tests and the frontend build.
+- Codex, 2026-11-01, User chat follow-up: added short-lived draft memory, missing-detail merging, deterministic availability explanations, and tests; verified 69 tests and the frontend build.
+- Codex, 2026-11-01, User chat correction: removed phrase-by-phrase fallback chat replies and routed all non-booking conversation to Gemini; verified 69 tests and the frontend build.
+- Codex, 2026-11-01, User booking persistence: repaired safe Gemini HTTP handling and made approved chat bookings reserve and render in the timetable; verified 72 tests and the frontend build.
+- Codex, 2026-11-01, Step 9b: added strict faculty-change drafting, solver and validity-gate proposals, code-derived class/booking explanations with an AI-phrasing fallback, UI controls, and tests; verified 75 tests and the frontend build.

@@ -10,6 +10,7 @@ const KIND_COLORS: Record<string, string> = {
   tutorial: 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300',
   lab: 'bg-amber-500/20 border-amber-500/40 text-amber-300',
   seminar: 'bg-cyan-500/20 border-cyan-500/40 text-cyan-300',
+  booking: 'bg-fuchsia-500/20 border-fuchsia-500/40 text-fuchsia-300',
 };
 
 export function TimetablePage() {
@@ -204,6 +205,12 @@ export function TimetablePage() {
               style={{ width: `${utilization}%` }}
             />
           </div>
+        </Card>
+      )}
+
+      {tt && tt.live_booking_count && tt.visible_live_booking_count !== tt.live_booking_count && (
+        <Card className="!p-3 border-[var(--color-warning)]! text-xs text-[var(--color-warning)]">
+          {tt.live_booking_count - (tt.visible_live_booking_count ?? 0)} approved room booking(s) are hidden by the Faculty or Group filter. Clear those filters to see them in the grid.
         </Card>
       )}
 

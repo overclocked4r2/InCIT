@@ -1,10 +1,12 @@
 import json
 from datetime import datetime
+from io import BytesIO
 from pathlib import Path
+from urllib.error import HTTPError
 
 import pytest
 
-from app.llm import parse_booking_draft_with_llm
+from app.llm import _http_error_detail, chat_with_llm, parse_booking_draft_with_llm
 from app.nl_parser import parse_booking_request
 
 
@@ -85,3 +87,44 @@ def test_invalid_llm_json_falls_back_to_the_manual_form(monkeypatch):
 
     assert draft is None
     assert "manual booking form" in message
+
+
+def test_gemini_http_errors_keep_the_key_secret_and_show_google_message():
+    error = HTTPError(
+        "https://generativelanguage.googleapis.com/v1beta/models/test:generateContent",
+        403,
+        "Forbidden",
+        {},
+        BytesIO(b'{"error":{"status":"PERMISSION_DENIED","message":"API key is not allowed for this API."}}'),
+    )
+
+    detail = _http_error_detail(error)
+
+    assert detail == "HTTP 403 PERMISSION_DENIED: API key is not allowed for this API."
+    assert "AIza" not in detail
+
+
+def test_chat_sends_the_key_in_a_header_not_the_url(monkeypatch):
+    class Response:
+        def read(self):
+            return b'{"candidates":[{"content":{"parts":[{"text":"Hello from Gemini"}]}}]}'
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_):
+            return False
+
+    monkeypatch.setenv("GEMINI_API_KEY", "test-key")
+    monkeypatch.setenv("GEMINI_MODEL", "test-model")
+
+    def fake_urlopen(request, **_kwargs):
+        assert "test-key" not in request.full_url
+        assert request.get_header("X-goog-api-key") == "test-key"
+        return Response()
+
+    monkeypatch.setattr("app.llm.urlopen", fake_urlopen)
+    reply, error = chat_with_llm("hello", "admin")
+
+    assert reply == "Hello from Gemini"
+    assert error is None

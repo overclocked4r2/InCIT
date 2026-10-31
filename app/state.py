@@ -25,6 +25,7 @@ class AppState:
         self.solver_status: str | None = None
         self._assignments: dict[str, dict] = {}
         self._fest_week: dict | None = None
+        self.live_bookings: list[dict] = []
         self._exams: list[dict] = []
         self.audit_log: list[dict] = []
         self.reschedule_requests: list[dict] = []
@@ -154,6 +155,16 @@ class AppState:
         self.assignments = candidate
         self.add_audit("session_rescheduled", "session", session_id,
                        details={"old": old, "new": self.assignments[session_id]})
+
+    def add_live_booking(self, booking: dict, *, actor: str) -> dict:
+        """Persist a booking already accepted by the deterministic placement gate."""
+        record = {"id": f"LIVE-{uuid.uuid4().hex[:8]}", **booking}
+        self.live_bookings.append(record)
+        self.add_audit(
+            "booking_created", "live_booking", record["id"], actor=actor,
+            details={"room": record["room_id"], "day": record["day"], "start": record["start_period"], "end": record["end_period"]},
+        )
+        return record
 
     def propose_reschedule(self, session_id: str, new_day: str, new_start: int,
                            new_room: str, reason: str, *, requested_by: str = "system") -> dict:

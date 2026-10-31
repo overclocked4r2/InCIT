@@ -116,7 +116,7 @@ class FestWeekResult(BaseModel):
 
 # ---- NL Parser schemas ----
 class NLParseRequest(BaseModel):
-    text: str = Field(min_length=5)
+    text: str = Field(min_length=1)
 
 
 class NLParseResponse(BaseModel):

@@ -25,7 +25,7 @@ def test_manual_booking_blocks_named_timetable_clash_without_llm(monkeypatch):
     state.dataset = _data()
     state.assignments = {"S1": {"session_id": "S1", "day": "MON", "start_period": 1, "room_id": "R1"}}
     state.fest_week = None
-    monkeypatch.setattr(main, "_require_action", lambda *_: SimpleNamespace(username="faculty"))
+    monkeypatch.setattr(main, "user_from_authorization", lambda *_: SimpleNamespace(username="admin", role="admin"))
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     monkeypatch.delenv("LLM_API_KEY", raising=False)
 

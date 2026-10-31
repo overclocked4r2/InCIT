@@ -13,6 +13,11 @@ export function ManualFormsPage() {
   const [schedule, setSchedule] = useState({ session_id: '', new_day: 'MON', new_start_period: 1, new_room_id: '', reason: '' });
   const [bookingMessage, setBookingMessage] = useState<{ status: string; text: string }>();
   const [scheduleMessage, setScheduleMessage] = useState<{ status: string; text: string }>();
+  const [facultyText, setFacultyText] = useState('');
+  const [facultyMessage, setFacultyMessage] = useState<{ status: string; text: string }>();
+  const [whySession, setWhySession] = useState('');
+  const [whyBooking, setWhyBooking] = useState('');
+  const [whyMessage, setWhyMessage] = useState('');
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -56,6 +61,31 @@ export function ManualFormsPage() {
     }
   };
 
+  const submitFacultyChange = async (event: FormEvent) => {
+    event.preventDefault();
+    setLoading(true);
+    try {
+      const result = await api.facultyChange(facultyText);
+      setFacultyMessage({ status: result.status, text: result.proposal?.message ?? result.message ?? 'Please add the missing details.' });
+    } catch (error) {
+      setFacultyMessage({ status: 'rejected', text: (error as Error).message });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const askWhy = async (kind: 'class' | 'booking') => {
+    setLoading(true);
+    try {
+      const result = kind === 'class' ? await api.explainClass(whySession) : await api.explainBooking(whyBooking);
+      setWhyMessage(result.message);
+    } catch (error) {
+      setWhyMessage((error as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-5">
       <Card>
@@ -90,7 +120,7 @@ export function ManualFormsPage() {
           </label>
           <div className="sm:col-span-2"><button type="submit" disabled={loading} className="btn-primary disabled:opacity-60">{loading ? 'Checking…' : 'Check booking'}</button></div>
         </form>
-        {bookingMessage && <p className="mt-3 text-sm"><Badge variant={bookingMessage.status === 'approved' ? 'success' : 'danger'}>{bookingMessage.status}</Badge> <span className="ml-2">{bookingMessage.text}</span></p>}
+        {bookingMessage && <p className="mt-3 text-sm"><Badge variant={bookingMessage.status === 'approved' ? 'success' : bookingMessage.status === 'not_allowed' ? 'info' : 'danger'}>{bookingMessage.status.replace('_', ' ')}</Badge> <span className="ml-2">{bookingMessage.text}</span></p>}
       </Card>
 
       <Card>
@@ -123,6 +153,26 @@ export function ManualFormsPage() {
           <div className="sm:col-span-2"><button type="submit" disabled={loading} className="btn-primary disabled:opacity-60">{loading ? 'Submitting…' : 'Submit session change'}</button></div>
         </form>
         {scheduleMessage && <p className="mt-3 text-sm"><Badge variant={scheduleMessage.status === 'pending' ? 'warning' : 'danger'}>{scheduleMessage.status}</Badge> <span className="ml-2">{scheduleMessage.text}</span></p>}
+      </Card>
+
+      <Card>
+        <h2 className="text-lg font-bold tracking-tight">Faculty assistant</h2>
+        <p className="text-xs text-[var(--color-text-muted)] mt-1">Describe a class change in plain language. The assistant only makes a draft; the solver checks it and an Admin must approve it.</p>
+        <form className="mt-4 space-y-3" onSubmit={submitFacultyChange}>
+          <textarea required value={facultyText} onChange={e => setFacultyText(e.target.value)} className="form-input w-full min-h-24" placeholder="Move session CSE101-L1 to Tuesday period 3 because of a faculty meeting." />
+          <button type="submit" disabled={!facultyText.trim() || loading} className="btn-primary disabled:opacity-60">{loading ? 'Checking…' : 'Create safe proposal'}</button>
+        </form>
+        {facultyMessage && <p className="mt-3 text-sm"><Badge variant={facultyMessage.status === 'pending' ? 'warning' : facultyMessage.status === 'needs_clarification' ? 'info' : 'danger'}>{facultyMessage.status.replace('_', ' ')}</Badge> <span className="ml-2">{facultyMessage.text}</span></p>}
+      </Card>
+
+      <Card>
+        <h2 className="text-lg font-bold tracking-tight">Why?</h2>
+        <p className="text-xs text-[var(--color-text-muted)] mt-1">These answers use recorded reason codes. If AI phrasing is unavailable, you will see those codes directly.</p>
+        <div className="grid sm:grid-cols-2 gap-3 mt-4">
+          <div className="flex gap-2"><input value={whySession} onChange={e => setWhySession(e.target.value)} className="form-input min-w-0 flex-1" placeholder="Class session ID" /><button type="button" disabled={!whySession || loading} onClick={() => askWhy('class')} className="btn-secondary disabled:opacity-60">Why class?</button></div>
+          <div className="flex gap-2"><input value={whyBooking} onChange={e => setWhyBooking(e.target.value)} className="form-input min-w-0 flex-1" placeholder="Booking request ID" /><button type="button" disabled={!whyBooking || loading} onClick={() => askWhy('booking')} className="btn-secondary disabled:opacity-60">Why booking?</button></div>
+        </div>
+        {whyMessage && <pre className="mt-3 whitespace-pre-wrap text-sm text-[var(--color-text-secondary)]">{whyMessage}</pre>}
       </Card>
     </div>
   );

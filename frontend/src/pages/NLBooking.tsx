@@ -18,6 +18,7 @@ interface ChatMessage {
   booking?: NLBookResponse['booking'];
   parsed?: NLBookResponse['parsed'];
   status?: string;
+  mode?: NLBookResponse['mode'];
 }
 
 export function NLBookingPage() {
@@ -30,14 +31,6 @@ export function NLBookingPage() {
     if (!t) return;
     setInput('');
 
-    if (t.length < 5) {
-      setMessages(prev => [...prev,
-        { role: 'user', content: t },
-        { role: 'assistant', content: 'Please describe your booking in at least 5 characters.', status: 'error' },
-      ]);
-      return;
-    }
-
     const userMsg: ChatMessage = { role: 'user', content: t };
     setMessages(prev => [...prev, userMsg]);
     setLoading(true);
@@ -46,7 +39,9 @@ export function NLBookingPage() {
       const res = await api.nlBook(t);
 
       let content = '';
-      if (res.status === 'approved') {
+      if (res.status === 'assistant') {
+        content = res.message ?? 'How can I help with your room booking?';
+      } else if (res.status === 'approved') {
         content = `✓ Booking approved!\nRoom: ${res.booking?.room_name} (${res.booking?.room_id})\nDay: ${res.booking?.day}, Periods ${res.booking?.start_period}–${res.booking?.end_period}\nCapacity: ${res.booking?.room_capacity}`;
       } else if (res.status === 'alternative_offered') {
         content = `↻ Alternative offered:\nRoom: ${res.booking?.room_name} (${res.booking?.room_id})\nDay: ${res.booking?.day}, Periods ${res.booking?.start_period}–${res.booking?.end_period}`;
@@ -68,15 +63,13 @@ export function NLBookingPage() {
         booking: res.booking,
         parsed: res.parsed,
         status: res.status,
+        mode: res.mode,
       };
       setMessages(prev => [...prev, botMsg]);
     } catch (e: unknown) {
-      const message = (e as Error).message.includes('String should have at least 5 characters')
-        ? 'Please describe your booking in at least 5 characters.'
-        : (e as Error).message;
       setMessages(prev => [...prev, {
         role: 'assistant',
-        content: `Error: ${message}`,
+        content: `I couldn’t process that yet: ${(e as Error).message}`,
         status: 'error',
       }]);
     } finally {
@@ -90,6 +83,7 @@ export function NLBookingPage() {
       approved: 'success',
       alternative_offered: 'warning',
       needs_clarification: 'info',
+      assistant: 'info',
       rejected: 'danger',
       no_timetable: 'warning',
       error: 'danger',
@@ -139,7 +133,10 @@ export function NLBookingPage() {
                 }`}
               >
                 {msg.role === 'assistant' && msg.status && (
-                  <div className="mb-2">{statusBadge(msg.status)}</div>
+                  <div className="mb-2 flex items-center gap-2">
+                    {statusBadge(msg.status)}
+                    {msg.mode && <Badge variant={msg.mode === 'ai' ? 'info' : 'default'}>{msg.mode === 'ai' ? 'AI mode' : 'Basic mode'}</Badge>}
+                  </div>
                 )}
                 <pre className="whitespace-pre-wrap font-sans text-sm">{msg.content}</pre>
                 {msg.parsed && (

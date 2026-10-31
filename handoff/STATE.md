@@ -3,7 +3,7 @@
 Keep this file short. Replace old text instead of adding to it.
 
 ## Current step
-**Step 9b** (not started). See `handoff/PLAN.md`.
+**Step 10** (not started). See `handoff/PLAN.md`.
 
 ## IN PROGRESS
 (nothing. Before each change, write one line here: what and which files. Clear it when done.)
@@ -25,6 +25,13 @@ Keep this file short. Replace old text instead of adding to it.
 - Completed Step 8 manual forms: structured room bookings go through a deterministic gate, named conflicts are blocked, and authorised staff can submit timetable changes for Admin approval. The forms work without an LLM key; 48 tests and the frontend build pass.
 - Completed Step 9a LLM draft parsing: an optional Gemini wrapper uses an environment key and strict local schema, with deterministic English/Hinglish parsing and the manual form as the safe fallback. The NL screen also turns too-short messages into plain guidance. All 8 public examples, dataset text, and adversarial prompts are covered; 60 tests pass.
 - Completed user-requested UI Step 1: placed the user controls inside the header flex row so they no longer overlap the top-bar event label; frontend build passes.
+- Completed user-requested UI Step 2: all signed-in users can chat with friendly greetings and capability answers; Admin and Club representative alone can create final bookings, while other roles receive a normal explanation. All 64 tests and the frontend build pass.
+- Completed user-requested UI Step 2b: general chat uses Gemini when available and shows AI mode; key/API failures log their reason and use a role-aware Basic mode fallback. Booking drafts and validity checks remain deterministic; 65 tests and the frontend build pass.
+- Completed user-requested UI Step 2c: the backend shell has no Gemini key, so Basic mode is correctly active; it now logs `GEMINI_API_KEY is not configured`, varies fallback replies, and answers mode/help/thanks/frustration questions. All 67 tests and the frontend build pass.
+- Completed user-requested chat follow-up step: Basic and AI chat can keep a short-lived booking draft, merge a missing detail such as `2 hours`, and explain deterministic room-capacity alternatives after a rejection. All 69 tests and the frontend build pass.
+- Corrected the chat design at the owner's request: removed phrase-by-phrase hardcoded conversation replies. General chat now goes to Gemini, and without a key Basic mode gives one honest limitation message while deterministic booking support remains available. All 69 tests and the frontend build pass.
+- Repaired Gemini API integration and booking persistence: the API key travels in a header, model HTTP failures log safe details and retry Flash-Lite, and approved chat bookings reserve their slot and render as timetable booking entries. All 72 tests and the frontend build pass.
+- Completed Step 9b faculty assistant and explanations: a strict Gemini change draft goes to the solver, then the deterministic validity gate, and finally the existing Admin approval gate. Class and booking “why” answers are built from reason codes and fall back to those codes when Gemini is unavailable. All 75 tests and the frontend build pass.
 
 ## Decided by the owner: follow the PS
 - The problem statement decides every product question. Do not ask the owner to choose features. If the PS is silent, pick the simplest option that satisfies it and note it under "Decisions made".
@@ -65,6 +72,7 @@ Keep this file short. Replace old text instead of adding to it.
 - Step 7 distinguishes a class from a booking using the dataset session IDs, not an ID naming convention.
 - Step 8 keeps manual booking checks stateless like the existing NL booking checker; it records an audit event but does not silently add an unapproved booking to the published schedule.
 - Step 9a uses Gemini only to fill a draft. The app ignores model-supplied priority, validates its JSON locally, and keeps the existing deterministic placement checks as the only validity decision.
+- Step 9b freezes other class times while the solver finds a compatible room for the requested class; its result is checked against the live timetable before a pending proposal is recorded.
 - The later user-requested UI steps are tracked in `HANDOFF.md`; do not start them until the owner says "continue".
 
 ## Known issues / watch out
