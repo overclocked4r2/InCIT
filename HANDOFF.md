@@ -38,6 +38,11 @@ service/account or an existing live URL.
 - Improved phone layouts: horizontal nav and timetable scrolling, stacked
   disruption panels, shrink-safe booking/select fields, and a viewport-anchored
   appearance panel.
+- Redesigned the staff login with a palette-aware campus scheduling visual,
+  clearer demo-access messaging, labeled/icon inputs, and responsive phone and
+  desktop layouts. Added a slow ambient color drift and a subtle cursor-following
+  glow; touch screens get only ambient motion, and reduced-motion disables it.
+  The existing demo login flow remains unchanged.
 - Added regression coverage for Hinglish parsing, no reservation before
   confirmation, revalidation at submission, lunch spans, and group conflicts.
 
@@ -59,6 +64,11 @@ service/account or an existing live URL.
   / Porcelain controls changed the root settings. At 1440px the sidebar and
   main content aligned at 240px expanded and 64px collapsed. Inspected a
   390px dashboard screenshot; it is in the system temp directory, not the repo.
+- Login checks at 320, 390, 768, 1024, and 1440px found no document overflow;
+  the demo Admin login still succeeds. Inspected mobile and desktop captures.
+- Verified the login glow follows pointer movement, mobile layout remains 390px
+  wide without overflow, and `prefers-reduced-motion: reduce` disables ambient
+  animation. Frontend production build passes.
 
 ## Resume here
 
