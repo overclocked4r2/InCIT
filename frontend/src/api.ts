@@ -45,6 +45,22 @@ async function request<T>(endpoint: string, init?: RequestInit): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+export type ManualBookingRequest = {
+  room_id: string;
+  day: string;
+  start_period: number;
+  duration_periods: number;
+  purpose: string;
+  attendance: number;
+  needs: string[];
+};
+
+export type ManualBookingResponse = {
+  status: 'approved' | 'rejected';
+  message: string;
+  booking?: { room_id: string; room_name: string; day: string; start_period: number; end_period: number; purpose: string };
+};
+
 export const api = {
   /* ── Health & Dashboard ── */
   health: () => request<{ status: string; timetable_status: string }>('/health'),
@@ -90,6 +106,8 @@ export const api = {
   /* ── Fest week / Spectra ── */
   festWeek: () => request<FestWeekResponse>('/fest-week'),
   reprocessFestWeek: () => request<Record<string, unknown>>('/fest-week/reprocess', { method: 'POST' }),
+  manualBooking: (data: ManualBookingRequest) =>
+    request<ManualBookingResponse>('/manual-booking', { method: 'POST', body: JSON.stringify(data) }),
 
   /* ── NL Booking ── */
   nlParse: (text: string) =>

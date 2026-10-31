@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { api } from '../api';
 import type { NLBookResponse } from '../types';
 import { Card, Button, Badge, EmptyState } from '../components/ui';
+import { ManualFormsPage } from './ManualForms';
 
 const EXAMPLES = [
   'Book a seminar hall for 80 students on Wednesday, periods 3-4, need projector',
@@ -171,6 +172,8 @@ export function NLBookingPage() {
           Send
         </Button>
       </div>
+
+      <ManualFormsPage />
     </div>
   );
 }

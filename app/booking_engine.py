@@ -32,6 +32,71 @@ def outranks(data: dict, r1: dict, r2: dict) -> bool:
     return r1["submitted_at"] < r2["submitted_at"]
 
 
+def validate_manual_booking(
+    data: dict,
+    timetable_assignments: dict[str, tuple[str, int, str]],
+    request: dict[str, Any],
+    existing_bookings: list[dict[str, Any]] | None = None,
+) -> str | None:
+    """Return a clear refusal reason, or ``None`` when a manual booking is valid."""
+    room_id = str(request.get("room_id", "")).strip()
+    room = next((candidate for candidate in data["rooms"] if candidate["id"] == room_id), None)
+    if room is None:
+        return f"Room {room_id or '(blank)'} was not found."
+
+    day = str(request.get("day", "")).upper()
+    if day not in data["calendar"]["days"]:
+        return f"{day or 'That day'} is not in the teaching calendar."
+
+    try:
+        start = int(request["start_period"])
+        duration = int(request["duration_periods"])
+        attendance = int(request["attendance"])
+    except (KeyError, TypeError, ValueError):
+        return "Period, duration, and attendance must be whole numbers."
+    if start < 1 or duration < 1 or start + duration - 1 > MAX_PERIOD:
+        return f"Periods must fit between P1 and P{MAX_PERIOD}."
+    if attendance < 1:
+        return "Attendance must be at least one person."
+    if not str(request.get("purpose", "")).strip():
+        return "Please provide a purpose for the booking."
+    if "event" not in room.get("allowed_uses", []):
+        return f"Room {room_id} cannot be used for an event."
+    if room["capacity"] < attendance:
+        return f"Room {room_id} seats {room['capacity']}, below the requested {attendance}."
+
+    needs = set(request.get("needs", []))
+    features = set(room.get("features", [])) | ({"accessible"} if room.get("accessible") else set())
+    missing = needs - features
+    if missing:
+        return f"Room {room_id} does not provide: {', '.join(sorted(missing))}."
+
+    periods = set(range(start, start + duration))
+    for unavailable in data.get("room_unavailability", []):
+        if unavailable["room_id"] == room_id and unavailable["day"] == day and periods & set(unavailable["periods"]):
+            return f"Room {room_id} is unavailable on {day} during the requested period."
+
+    sessions = {session["id"]: session for session in data["sessions"]}
+    for session_id, (session_day, session_start, session_room) in timetable_assignments.items():
+        session = sessions.get(session_id)
+        if session is None or session_room != room_id or session_day != day:
+            continue
+        occupied = set(range(session_start, session_start + session["duration"]))
+        if periods & occupied:
+            return f"Room {room_id} clashes with scheduled session {session_id} on {day}."
+
+    for booking in existing_bookings or []:
+        if booking.get("status") not in ("approved", "alternative_offered"):
+            continue
+        if booking.get("room_id") != room_id or booking.get("day") != day:
+            continue
+        occupied = set(range(booking["start_period"], booking["end_period"] + 1))
+        if periods & occupied:
+            return f"Room {room_id} clashes with booking {booking['request_id']} on {day}."
+
+    return None
+
+
 def process_booking_requests(
     data: dict,
     timetable_assignments: dict[str, tuple[str, int, str]],  # sid -> (day, start, room_id)

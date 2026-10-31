@@ -456,6 +456,51 @@ def reprocess_bookings():
     return {"status": "reprocessed", "fest_week": state.fest_week}
 
 
+@app.post("/api/manual-booking")
+def create_manual_booking(req: dict[str, Any], authorization: str | None = Header(default=None)):
+    """Check a structured booking form with the deterministic booking gate."""
+    user = _require_action(authorization, "request_booking")
+    if not state.assignments:
+        raise HTTPException(400, "No timetable is available yet. Generate one first.")
+
+    data = _load_dataset()
+    from .booking_engine import validate_manual_booking
+
+    assignments = {
+        session_id: (assignment["day"], assignment["start_period"], assignment["room_id"])
+        for session_id, assignment in state.assignments.items()
+    }
+    existing_bookings = (state.fest_week or {}).get("bookings", [])
+    reason = validate_manual_booking(data, assignments, req, existing_bookings)
+    if reason:
+        state.add_audit(
+            "manual_booking_rejected", "manual_booking", str(req.get("room_id", "unknown")),
+            actor=user.username, details={"reason": reason},
+        )
+        return {"status": "rejected", "message": reason}
+
+    room_id = str(req["room_id"])
+    room = next(room for room in data["rooms"] if room["id"] == room_id)
+    start = int(req["start_period"])
+    duration = int(req["duration_periods"])
+    state.add_audit(
+        "manual_booking_checked", "manual_booking", room_id, actor=user.username,
+        details={"day": str(req["day"]).upper(), "start": start, "duration": duration},
+    )
+    return {
+        "status": "approved",
+        "message": "Booking passes the timetable validity checks.",
+        "booking": {
+            "room_id": room_id,
+            "room_name": room["name"],
+            "day": str(req["day"]).upper(),
+            "start_period": start,
+            "end_period": start + duration - 1,
+            "purpose": str(req["purpose"]),
+        },
+    }
+
+
 # ============================================================
 # NL Booking parser
 # ============================================================
@@ -537,7 +582,7 @@ def nl_book(req: NLParseRequest, authorization: str | None = Header(default=None
         "mandatory_for_groups": parsed.get("mandatory_for_groups", []),
     }
     
-    placement = _find_placement(mock_req, rooms, room_busy, room_unavail, group_occ, data)
+    placement = _find_placement(mock_req, rooms, room_busy, room_unavail, group_occ, data, set(sessions_map))
     
     if placement:
         room_id, day, start_p, end_p, is_exact = placement

@@ -9,3 +9,4 @@
 - Codex, 2026-10-31, Step 5: added pending reschedule proposals, Admin decisions, validity-gated approval, audit entries, and diff review controls; verified 39 tests and the frontend build.
 - Codex, 2026-10-31, Step 6: implemented demo login, central roles, self-approval prevention, reset, login UI, and README credentials; verified 43 tests and frontend build.
 - Codex, 2026-11-01, Step 7: corrected role-based booking priority, safe institute-event displacement, decision reasons, README wording, and tests; verified 47 tests and the organiser validator.
+- Codex, 2026-11-01, Step 8: added deterministic manual booking and session-change forms, named conflict responses, and no-LLM tests; verified 48 tests and the frontend build.
