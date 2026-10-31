@@ -23,9 +23,9 @@ class AppState:
         """Reset all state."""
         self.timetable_status: str = "not_generated"  # not_generated, generating, draft, published
         self.solver_status: str | None = None
-        self.assignments: dict[str, dict] = {}  # session_id -> {session_id, day, start_period, room_id}
-        self.fest_week: dict | None = None
-        self.exams: list[dict] = []
+        self._assignments: dict[str, dict] = {}
+        self._fest_week: dict | None = None
+        self._exams: list[dict] = []
         self.audit_log: list[dict] = []
         self.reschedule_requests: list[dict] = []
         self.validation_report: dict | None = None
@@ -36,6 +36,64 @@ class AppState:
         self.published_at: str | None = None
         self.version: int = 0
         self.versions: list[dict] = []  # archived versions
+
+    @property
+    def assignments(self) -> dict[str, dict]:
+        return self._assignments
+
+    @assignments.setter
+    def assignments(self, assignments: dict[str, dict]):
+        self._check_timetable(list(assignments.values()))
+        self._assignments = assignments
+
+    @property
+    def fest_week(self) -> dict | None:
+        return self._fest_week
+
+    @fest_week.setter
+    def fest_week(self, fest_week: dict | None):
+        self._check_full_schedule(fest_week=fest_week)
+        self._fest_week = fest_week
+
+    @property
+    def exams(self) -> list[dict]:
+        return self._exams
+
+    @exams.setter
+    def exams(self, exams: list[dict]):
+        self._check_full_schedule(exams=exams)
+        self._exams = exams
+
+    def _check_timetable(self, assignments: list[dict]):
+        """Reject an invalid schedule before it enters mutable application state."""
+        if not assignments or self.dataset is None:
+            return
+        from .validator_bridge import check_timetable
+
+        violations = check_timetable(assignments, self.dataset)
+        if violations:
+            self.validation_report = {
+                "hard_violations": violations,
+                "hard_violation_count": len(violations),
+                "hard_by_rule": {},
+            }
+            raise ValueError(f"Timetable rejected by validity gate: {violations[0]['detail']}")
+
+    def _check_full_schedule(self, *, fest_week: dict | None = None, exams: list[dict] | None = None):
+        """Reject invalid booking or exam changes once a dataset and timetable exist."""
+        if self.dataset is None or not self._assignments:
+            return
+        from .validator_bridge import run_validation
+
+        schedule = self.export_schedule()
+        if fest_week is not None:
+            schedule["fest_week"] = fest_week
+        if exams is not None:
+            schedule["exams"] = exams
+        report = run_validation(self.dataset, schedule)
+        if report["hard_violation_count"]:
+            self.validation_report = report
+            raise ValueError(f"Schedule change rejected by validity gate: {report['hard_violations'][0]['detail']}")
     
     def add_audit(self, action: str, entity_type: str, entity_id: str,
                   actor: str = "system", details: dict | None = None):
@@ -86,12 +144,14 @@ class AppState:
     def apply_reschedule(self, session_id: str, new_day: str, new_start: int, new_room: str):
         """Apply a reschedule to the current assignments."""
         old = self.assignments.get(session_id)
-        self.assignments[session_id] = {
+        candidate = dict(self.assignments)
+        candidate[session_id] = {
             "session_id": session_id,
             "day": new_day,
             "start_period": new_start,
             "room_id": new_room,
         }
+        self.assignments = candidate
         self.add_audit("session_rescheduled", "session", session_id,
                        details={"old": old, "new": self.assignments[session_id]})
     

@@ -46,7 +46,7 @@ def block(start, dur):
     return list(range(start, start + dur))
 
 
-def check_timetable(ctx, assign, label):
+def _check_assignments(ctx, assign, label):
     V = []
     def v(rule, msg):
         V.append({"rule": rule, "where": label, "detail": msg})
@@ -197,7 +197,7 @@ def check_bookings(ctx, base, fest):
         elif data["priority_order"].index(effective_category(data, req)) > data["priority_order"].index("institute_event"):
             V.append({"rule": "B2", "where": "fest_week", "detail": f"{o['displaced_by']} ({effective_category(data, req)}) is not allowed to displace a regular session"})
         week[sid] = (o["day"], o["start_period"], o["room_id"])
-    wv, wgrp = check_timetable(ctx, week, "fest_week")
+    wv, wgrp = _check_assignments(ctx, week, "fest_week")
     V += wv
 
     room_busy = defaultdict(list)
@@ -321,22 +321,43 @@ def check_exams(ctx, exams_out):
     return V, pen
 
 
+def _to_assignments(schedule: dict) -> tuple[dict, list[str]]:
+    """Convert export-shaped sessions into the validator's assignment map."""
+    assignments: dict[str, tuple] = {}
+    duplicates: list[str] = []
+    for entry in schedule.get("sessions", []):
+        session_id = entry.get("session_id")
+        if session_id in assignments:
+            duplicates.append(session_id)
+        assignments[session_id] = (entry.get("day"), entry.get("start_period"), entry.get("room_id"))
+    return assignments, duplicates
+
+
+def check_timetable(timetable: dict | list[dict], data: dict) -> list[dict]:
+    """Return all hard timetable violations for an export-shaped timetable.
+
+    This is the one deterministic gate for schedule creation and edits. It only
+    checks timetable sessions; booking and exam checks remain in `run_validation`.
+    """
+    schedule = {"sessions": timetable} if isinstance(timetable, list) else timetable
+    if not isinstance(schedule, dict):
+        raise TypeError("timetable must be a schedule dictionary or a list of sessions")
+
+    assignments, duplicates = _to_assignments(schedule)
+    violations, _ = _check_assignments(Ctx(data), assignments, "timetable")
+    for session_id in duplicates:
+        violations.append({"rule": "H1", "where": "timetable", "detail": f"Session {session_id} appears more than once"})
+
+    seen: set[tuple[str, str]] = set()
+    return [violation for violation in violations if not ((key := (violation["rule"], violation["detail"])) in seen or seen.add(key))]
+
+
 def run_validation(data: dict, schedule: dict) -> dict:
     """Run full validation on a schedule against the dataset."""
     ctx = Ctx(data)
     
-    # Convert schedule sessions to assign dict
-    assign = {}
-    dup = []
-    for e in schedule.get("sessions", []):
-        sid = e.get("session_id")
-        if sid in assign:
-            dup.append(sid)
-        assign[sid] = (e.get("day"), e.get("start_period"), e.get("room_id"))
-    
-    V, _ = check_timetable(ctx, assign, "timetable")
-    for d in dup:
-        V.append({"rule": "H1", "where": "timetable", "detail": f"Session {d} appears more than once"})
+    assign, _ = _to_assignments(schedule)
+    V = check_timetable(schedule, data)
     
     soft, total = soft_score(ctx, assign)
     
