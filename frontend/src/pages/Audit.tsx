@@ -192,7 +192,7 @@ export function AuditPage() {
             onClick={() => setFilterEntity(et)}
             className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
               filterEntity === et
-                ? 'bg-[var(--color-accent)] text-white'
+                ? 'bg-[var(--color-accent)] text-[var(--color-on-accent)]'
                 : 'bg-[var(--color-surface-2)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]'
             }`}
           >

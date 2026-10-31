@@ -65,6 +65,9 @@ export function Layout({ user, onLogout }: LayoutProps) {
   const [health, setHealth] = useState<string>('…');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [theme, setTheme] = useState<'midnight' | 'porcelain'>(() =>
+    document.documentElement.dataset.theme === 'porcelain' ? 'porcelain' : 'midnight',
+  );
   const navItems = ROLE_NAV[user.role] ?? ROLE_NAV.faculty;
 
   useEffect(() => {
@@ -86,6 +89,16 @@ export function Layout({ user, onLogout }: LayoutProps) {
     ?? ADMIN_NAV.find(n => location.pathname.startsWith(n.to));
   const today = new Date().toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' });
 
+  const chooseTheme = (nextTheme: 'midnight' | 'porcelain') => {
+    setTheme(nextTheme);
+    document.documentElement.dataset.theme = nextTheme;
+    try {
+      localStorage.setItem('incit_theme', nextTheme);
+    } catch {
+      // The theme still changes for this session when browser storage is unavailable.
+    }
+  };
+
   return (
     <div className="flex min-h-dvh">
       <aside
@@ -94,7 +107,7 @@ export function Layout({ user, onLogout }: LayoutProps) {
         }`}
       >
         <div className="flex items-center gap-3 px-4 h-16 border-b border-[var(--color-border)] shrink-0">
-          <div className="w-8 h-8 rounded-lg bg-[var(--color-accent)] flex items-center justify-center text-white font-bold text-sm shrink-0">
+          <div className="w-8 h-8 rounded-lg bg-[var(--color-accent)] flex items-center justify-center text-[var(--color-on-accent)] font-bold text-sm shrink-0">
             In
           </div>
           {sidebarOpen && (
@@ -138,6 +151,36 @@ export function Layout({ user, onLogout }: LayoutProps) {
           </span>
 
           <div className="ml-auto flex min-w-0 items-center gap-2 sm:gap-3">
+            <div className="theme-switch" role="group" aria-label="Color theme">
+              <button
+                type="button"
+                onClick={() => chooseTheme('midnight')}
+                aria-label="Midnight theme"
+                aria-pressed={theme === 'midnight'}
+                title="Midnight Tide theme"
+                className={`theme-option ${theme === 'midnight' ? 'theme-option-active' : ''}`}
+              >
+                <svg aria-hidden="true" viewBox="0 0 20 20" fill="none" className="h-4 w-4">
+                  <path d="M16.6 12.3A7.1 7.1 0 0 1 7.7 3.4a7.2 7.2 0 1 0 8.9 8.9Z" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="m13.8 3 .4 1.2 1.2.4-1.2.4-.4 1.2-.4-1.2-1.2-.4 1.2-.4.4-1.2Z" fill="currentColor" />
+                </svg>
+                <span className="hidden 2xl:inline">Midnight</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => chooseTheme('porcelain')}
+                aria-label="Porcelain theme"
+                aria-pressed={theme === 'porcelain'}
+                title="Porcelain theme"
+                className={`theme-option ${theme === 'porcelain' ? 'theme-option-active' : ''}`}
+              >
+                <svg aria-hidden="true" viewBox="0 0 20 20" fill="none" className="h-4 w-4">
+                  <circle cx="10" cy="10" r="3.3" stroke="currentColor" strokeWidth="1.6" />
+                  <path d="M10 1.8v2M10 16.2v2M18.2 10h-2M3.8 10h-2m14-5.8-1.4 1.4M5.6 14.4l-1.4 1.4m11.6 0-1.4-1.4M5.6 5.6 4.2 4.2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                </svg>
+                <span className="hidden 2xl:inline">Porcelain</span>
+              </button>
+            </div>
             <button
               onClick={() => setPaletteOpen(true)}
               className="shrink-0 flex items-center gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] px-3 py-1.5 text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-3)] transition-colors"

@@ -175,7 +175,7 @@ export function NLBookingPage() {
               <div
                 className={`max-w-[80%] rounded-xl px-4 py-3 text-sm ${
                   msg.role === 'user'
-                    ? 'bg-[var(--color-accent)] text-white rounded-br-sm'
+                    ? 'bg-[var(--color-accent)] text-[var(--color-on-accent)] rounded-br-sm'
                     : 'bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-bl-sm'
                 }`}
               >

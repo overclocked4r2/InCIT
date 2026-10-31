@@ -6,7 +6,7 @@ Keep this file short. Replace old text instead of adding to it.
 **Step 12** (in progress). Deployment preparation is complete; publishing and live checks need the owner's Render access.
 
 ## IN PROGRESS
-(nothing. This session's product changes are complete; deployment/live checks still need the owner's Render access or service URL.)
+(nothing. Product improvements are complete; deployment/live checks still need the owner's Render access or service URL.)
 
 ## Done
 - Removed the pre-approved student portal, its tests, screenshots, routes, UI, and README text.
@@ -38,6 +38,7 @@ Keep this file short. Replace old text instead of adding to it.
 - Completed owner-approved deployment prep: cleaned runtime dependencies, ignored `.env`, scanned tracked files and git history for key-like secrets, added root `/health`, and verified the native Render build/start sequence. All 78 tests and the frontend build pass.
 - Confirmed Step 12 cannot publish or test a live link until the owner provides Render access or the existing service URL.
 - Completed the requested Hinglish and booking-review improvements: added common romanised Hinglish aliases/ranges and UI examples; natural-language requests now produce editable, non-reserving drafts; explicit submission rechecks hard constraints and then reserves; the manual form uses that same gate. Booking checks include mandatory group conflicts, existing live bookings, and the lunch break. All four dataset role categories can submit through the central role check, and confirmed bookings retain the capped category. README and AI declarations reflect the flow. Verified 82 tests, frontend production build, and both official exports (0 hard violations; 13 moves for the sample disruption).
+- Added Midnight Tide and Porcelain themes with a persistent, keyboard-accessible header switch. Reworked the shared semantic palette and on-accent colors, added modest transitions/focus treatment, and respects reduced-motion preferences. `npm run build` passes.
 
 ## Decided by the owner: follow the PS
 - The problem statement decides every product question. Do not ask the owner to choose features. If the PS is silent, pick the simplest option that satisfies it and note it under "Decisions made".

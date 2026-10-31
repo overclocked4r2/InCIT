@@ -28,6 +28,11 @@ service/account or an existing live URL.
   live booking.
 - Updated the README and AI declaration to describe the booking review flow,
   supported languages, and role-specific booking access.
+- Added two persistent themes: Midnight Tide uses deep navy with soft teal;
+  Porcelain uses warm white with ink and ocean teal. The compact header switch
+  is keyboard accessible, and accent foregrounds remain readable in both.
+- Added restrained color transitions, clear keyboard focus, and reduced-motion
+  support so theme interaction stays calm and usable for official work.
 - Added regression coverage for Hinglish parsing, no reservation before
   confirmation, revalidation at submission, lunch spans, and group conflicts.
 
@@ -40,6 +45,11 @@ service/account or an existing live URL.
 - Official starter-pack validator, `exports/schedule_after.json` — **0 hard
   violations**, soft penalty 3, 13 sessions moved (7 time, 6 room-only).
 - `git diff --check` — passed.
+- `npm run build` after the theme work — passed (TypeScript and Vite).
+- A signed-in browser preview was not completed: the Windows computer-use
+  layer could not verify the current browser URL, so no browser actions were
+  taken. The selector still needs a visual pass when the app can be opened
+  safely in a known local preview.
 
 ## Resume here
 

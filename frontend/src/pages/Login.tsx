@@ -42,7 +42,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
           Password
           <input type="password" value={password} onChange={event => setPassword(event.target.value)} className="mt-1 w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] px-3 py-2 text-[var(--color-text-primary)]" />
         </label>
-        <button disabled={loading} className="w-full rounded-lg bg-[var(--color-accent)] px-4 py-2 font-semibold text-white disabled:opacity-60">
+        <button disabled={loading} className="w-full rounded-lg bg-[var(--color-accent)] px-4 py-2 font-semibold text-[var(--color-on-accent)] disabled:opacity-60">
           {loading ? 'Signing in…' : 'Sign in'}
         </button>
       </form>

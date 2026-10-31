@@ -82,9 +82,9 @@ export function Button({
 }) {
   const base = 'inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed';
   const variants: Record<string, string> = {
-    primary: 'bg-[var(--color-accent)] text-white hover:bg-[var(--color-accent-hover)] active:scale-[0.98]',
+    primary: 'bg-[var(--color-accent)] text-[var(--color-on-accent)] hover:bg-[var(--color-accent-hover)] active:scale-[0.98]',
     secondary: 'bg-[var(--color-surface-3)] text-[var(--color-text-primary)] hover:bg-[var(--color-surface-4)] border border-[var(--color-border)]',
-    danger: 'bg-[var(--color-danger)] text-white hover:bg-red-500 active:scale-[0.98]',
+    danger: 'bg-[var(--color-danger)] text-[var(--color-on-danger)] hover:brightness-110 active:scale-[0.98]',
     ghost: 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-2)]',
   };
   return (
