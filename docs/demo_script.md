@@ -19,12 +19,12 @@
    cd frontend && npm run dev
    ```
    If you have already built the image once, `docker compose up` serves the same app on port 8000; do not make the first Docker build part of the live demo.
-2. Open `http://localhost:8000` (container) or `http://localhost:5173` (dev). `/home` is the student portal; `/dashboard` is the admin overview.
+2. Open `http://localhost:8000` (container) or `http://localhost:5173` (dev), then go to `/dashboard`.
 3. Go to **Timetable → Run Solver** once and wait for `189 sessions assigned`. The state is in memory; keep the server process alive. This removes a ~25-second wait from the live demo.
 4. Open these tabs in order: Dashboard, Timetable, Spectra Week, NL Booking, Disruptions, Audit Trail. Close notifications and terminal windows.
 5. Have the fallback ready: `exports/schedule.json` and `exports/schedule_after.json`, plus this validator command in a terminal:
    ```bash
-   python C:/Users/aruna/Downloads/CrunchWeek_StarterPack/validator.py \
+   python STARTER_PACK/validator.py \
      --data data/cit_public.json --schedule exports/schedule.json
    ```
 6. Say the numbers out loud once before you start: **189 sessions, 27 rooms, 40 faculty, 14 groups, 25 booking requests, 41 exams, 0 hard violations.**
@@ -110,18 +110,6 @@
 > "Every generate, publish, booking, disruption, and reschedule is logged with a timestamp. From here we export the exact schedule JSON that the official validator reads.
 >
 > InCIT is one engine for the weekly timetable, fest week, and exams — deterministic, offline, explainable, and **0 hard violations on both official runs**. The next step is stability-aware re-solving at institute scale. Thank you — what would you like us to schedule?"
-
----
-
-## Optional 30-second student-portal beat
-
-If the judges ask "what does a student actually see?", open `/home` before the audit close:
-
-*Click **Attendance**, then **+ Present** on one subject; the ring and "attend N more" number update immediately.*
-
-> "The same engine powers a student portal: today's classes, a 75% attendance target with exact attend/miss maths, projected SGPA, exam seat plans, free study windows, fest events and course notes. It reads the published schedule, so students and the scheduling office never disagree about where a class is."
->
-> "The attendance and marks records are clearly labelled demo data because the public dataset has no SIS records; timetables, exams and events are real solver output."
 
 ---
 

@@ -1,6 +1,7 @@
 .freebuff/
 .venv/
 .pytest_cache/
+.freebuff/
 __pycache__/
 *.py[cod]
 *.db

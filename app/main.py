@@ -27,7 +27,6 @@ from .schemas import (
     RoomOut, FacultyOut, StudentGroupOut, SessionOut, CourseOut,
 )
 from .state import state
-from .portal import router as portal_router, load_portal_state, reset_portal_state
 
 app = FastAPI(
     title="InCIT — Institutional Scheduling System",
@@ -42,9 +41,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-app.include_router(portal_router)
-
 
 def _bootstrap_from_export() -> bool:
     """Load the committed baseline schedule so the UI is useful on a cold start."""
@@ -89,7 +85,6 @@ def _bootstrap_from_export() -> bool:
 @app.on_event("startup")
 def _startup():
     _bootstrap_from_export()
-    load_portal_state()
 
 
 def _load_dataset(path: str | Path | None = None) -> dict:
@@ -194,8 +189,10 @@ def list_booking_requests():
 
 @app.get("/api/exams")
 def list_exams():
-    data = _load_dataset()
-    return data.get("exams", [])
+    if not state.exams:
+        from .exam_scheduler import schedule_exams
+        state.exams = schedule_exams(_load_dataset())
+    return state.exams
 
 
 @app.get("/api/calendar")
@@ -791,7 +788,6 @@ def get_audit_log(limit: int = 50, entity_type: str | None = None):
 def reset_state():
     """Reset all application state back to the committed baseline schedule."""
     state.reset()
-    reset_portal_state()
     _bootstrap_from_export()
     return {"status": "reset", "timetable_status": state.timetable_status, "sessions": len(state.assignments)}
 

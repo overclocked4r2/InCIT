@@ -1,9 +1,13 @@
-"""Quick script to test solver, validate, and export."""
+"""Run a live API solver check from any working directory.
+
+Set INCIT_API_URL to test a different server; it defaults to localhost.
+"""
 import urllib.request
 import json
 import sys
+import os
 
-BASE = "http://localhost:8000/api"
+BASE = f"{os.environ.get('INCIT_API_URL', 'http://localhost:8000').rstrip('/')}/api"
 
 def api(endpoint, method="GET", body=None):
     data = json.dumps(body).encode() if body else None

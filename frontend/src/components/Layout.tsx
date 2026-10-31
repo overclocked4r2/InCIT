@@ -1,9 +1,7 @@
 import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { api } from '../api';
-import { useStudent } from '../StudentContext';
 import { CommandPalette } from './CommandPalette';
-import { StudentSwitcher } from './StudentSwitcher';
 
 interface NavItem {
   to: string;
@@ -11,27 +9,17 @@ interface NavItem {
   icon: string;
 }
 
-const CAMPUS_NAV: NavItem[] = [
-  { to: '/home', label: 'Home', icon: '◈' },
-  { to: '/my-timetable', label: 'My timetable', icon: '▦' },
-  { to: '/attendance', label: 'Attendance', icon: '◔' },
-  { to: '/marks', label: 'Marks & CGPA', icon: '✦' },
-  { to: '/exams', label: 'Exam timetable', icon: '◇' },
-  { to: '/planner', label: 'Planner', icon: '◷' },
-  { to: '/notes', label: 'Notes', icon: '✐' },
-  { to: '/campus-life', label: 'Campus life', icon: '★' },
-];
-
 const ADMIN_NAV: NavItem[] = [
   { to: '/dashboard', label: 'Overview', icon: '⚙' },
   { to: '/timetable', label: 'Solver & timetable', icon: '▶' },
+  { to: '/exams', label: 'Exam schedule', icon: '◇' },
   { to: '/spectra', label: 'Spectra Week', icon: '✹' },
   { to: '/booking', label: 'NL booking', icon: '✎' },
   { to: '/disruption', label: 'Disruptions', icon: '⚡' },
   { to: '/audit', label: 'Audit trail', icon: '◶' },
 ];
 
-const ALL_NAV = [...CAMPUS_NAV, ...ADMIN_NAV];
+const ALL_NAV = ADMIN_NAV;
 
 function NavSection({ title, items }: { title: string; items: NavItem[] }) {
   return (
@@ -63,11 +51,9 @@ function NavSection({ title, items }: { title: string; items: NavItem[] }) {
 
 export function Layout() {
   const location = useLocation();
-  const { student, loading } = useStudent();
   const [health, setHealth] = useState<string>('…');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [paletteOpen, setPaletteOpen] = useState(false);
-  const [switcherOpen, setSwitcherOpen] = useState(false);
 
   useEffect(() => {
     api.health().then(h => setHealth(h.status)).catch(() => setHealth('offline'));
@@ -102,38 +88,16 @@ export function Layout() {
           {sidebarOpen && (
             <div className="animate-fade-in min-w-0">
               <div className="text-sm font-semibold tracking-tight text-[var(--color-text-primary)]">InCIT</div>
-              <div className="text-[10px] text-[var(--color-text-muted)] tracking-wider uppercase truncate">Campus & scheduler</div>
+              <div className="text-[10px] text-[var(--color-text-muted)] tracking-wider uppercase truncate">Institutional scheduler</div>
             </div>
           )}
         </div>
 
         <nav className="flex-1 py-1 px-2 overflow-y-auto">
-          <NavSection title="My campus" items={CAMPUS_NAV} />
-          <div className="my-3 border-t border-[var(--color-border-subtle)]" />
-          <NavSection title="Administration" items={ADMIN_NAV} />
+          <NavSection title="Scheduling" items={ADMIN_NAV} />
         </nav>
 
         <div className="px-2 py-3 border-t border-[var(--color-border)] space-y-2 shrink-0">
-          <button
-            onClick={() => setSwitcherOpen(true)}
-            className="w-full flex items-center gap-2.5 px-2 py-2 rounded-lg hover:bg-[var(--color-surface-2)] transition-colors text-left"
-            title="Switch student profile"
-          >
-            <span className="w-8 h-8 rounded-full bg-gradient-to-br from-[var(--color-accent)] to-[var(--color-cyan)] flex items-center justify-center text-[10px] font-bold text-white shrink-0">
-              {loading ? '…' : student?.initials ?? '?'}
-            </span>
-            {sidebarOpen && (
-              <span className="min-w-0">
-                <span className="block text-xs font-medium text-[var(--color-text-primary)] truncate">
-                  {student?.name ?? 'Loading profile'}
-                </span>
-                <span className="block text-[10px] text-[var(--color-text-muted)] truncate">
-                  {student ? `${student.roll} · ${student.semester_label}` : 'Demo profile'}
-                </span>
-              </span>
-            )}
-          </button>
-
           <div className="flex items-center gap-2 px-2">
             <span className={`w-2 h-2 rounded-full shrink-0 ${health === 'ok' ? 'bg-[var(--color-success)] animate-pulse-dot' : 'bg-[var(--color-danger)]'}`} />
             {sidebarOpen && (
@@ -180,7 +144,6 @@ export function Layout() {
       </main>
 
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
-      <StudentSwitcher open={switcherOpen} onClose={() => setSwitcherOpen(false)} />
     </div>
   );
 }

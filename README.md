@@ -40,16 +40,6 @@
    - Interactive Timetable Grid (Day × Period matrix) filterable by Faculty, Room, or Student Group.
    - Fest-week approvals view, live bilingual NL booking sandbox, disruption tester, and one-click JSON export.
 
-7. **Student & Campus Portal (Campus Web layer)**:
-   - Six demo student profiles mapped to the dataset's real groups, with a profile switcher and ⌘K campus search.
-   - Dashboard with next class, attendance ring, projected SGPA/CGPA, exam alerts, fest events and mess menu.
-   - Attendance tracking with 75% target maths, present/absent logging, a what-if simulator and CSV export.
-   - Marks/CGPA breakdown, exam timetable with half-capacity seat plans, weekly planner with free study windows.
-   - Course notes (create/edit/pin/delete, persisted server-side), plus events, clubs and mess tabs.
-   - Every student view reads the published solver output; demo-only attendance and marks are clearly labelled.
-
----
-
 ## 🏆 Official Validator Benchmark Results
 
 Both output schedules were tested directly against the official CrunchWeek StarterPack `validator.py`:
@@ -91,7 +81,6 @@ graph TD
     end
     
     subgraph Data & Storage
-        State <--> DB[(SQLite WAL Database)]
         State <--> Dataset[(cit_public.json)]
         State <--> Exports[exports/*.json]
     end
@@ -107,13 +96,10 @@ graph TD
 InCIT/
 ├── app/                        # FastAPI Backend Application
 │   ├── main.py                 # REST API endpoints & route definitions (40+ endpoints)
-│   ├── portal.py               # Student portal: profiles, attendance, marks, planner, notes, search
 │   ├── solver.py               # Google OR-Tools CP-SAT solver implementation
 │   ├── booking_engine.py       # Fest-week / Spectra priority booking system
 │   ├── exam_scheduler.py       # Exam room & slot scheduler (half capacity)
 │   ├── nl_parser.py            # Bilingual English/Hindi natural language parser
-│   ├── models.py               # 19 SQLAlchemy 2.0 ORM models
-│   ├── db.py                   # SQLite connection with WAL mode & foreign keys
 │   ├── validator.py            # Deterministic interval validation engine
 │   ├── validator_bridge.py     # Adapter to official CrunchWeek validator
 │   ├── state.py                # In-memory runtime state, versioning, audit trail
@@ -123,23 +109,14 @@ InCIT/
 │   ├── src/
 │   │   ├── components/         # Layout and reusable UI components
 │   │   ├── pages/
-│   │   │   ├── StudentHome.tsx # Student dashboard: next class, attendance, SGPA, exams, events
-│   │   │   ├── MyTimetable.tsx # Read-only student week grid with class detail
-│   │   │   ├── Attendance.tsx  # 75% tracking, logging, what-if simulator, CSV
-│   │   │   ├── Marks.tsx       # Internal marks, SGPA/CGPA and semester trend
 │   │   │   ├── Exams.tsx       # Exam slots, rooms and half-capacity seat plans
-│   │   │   ├── Planner.tsx     # Week view, free study windows and exam week
-│   │   │   ├── Notes.tsx       # Course-tagged notes with pin/edit/delete
-│   │   │   ├── CampusLife.tsx  # Fest events, clubs and mess menu
 │   │   │   ├── Dashboard.tsx   # Admin system overview, KPIs, and status metrics
 │   │   │   ├── Timetable.tsx   # Admin solver trigger + Day × Period matrix grid
 │   │   │   ├── SpectraWeek.tsx # Fest-week bookings & priority decisions
 │   │   │   ├── NLBooking.tsx   # Conversational booking sandbox (EN/HI)
 │   │   │   ├── Disruption.tsx  # Outage simulator & dynamic re-solver
 │   │   │   └── Audit.tsx       # Audit trail, version history & export
-│   │   ├── components/CommandPalette.tsx  # ⌘K campus search
-│   │   ├── components/StudentSwitcher.tsx # Demo student profile switcher
-│   │   ├── StudentContext.tsx  # Shared student profile + localStorage persistence
+│   │   ├── components/CommandPalette.tsx  # Keyboard page navigation
 │   │   ├── api.ts              # Typed API client for FastAPI
 │   │   └── types.ts            # TypeScript interfaces matching backend models
 │   ├── package.json
@@ -152,10 +129,8 @@ InCIT/
 ├── tests/
 │   ├── test_validator.py       # Unit tests for validation logic
 │   ├── test_nl_parser.py       # Bilingual parser regression tests
-│   └── test_portal.py          # Student portal API integration tests
-├── run_solver_e2e.py           # End-to-end integration test runner
+│   └── solver_e2e.py           # End-to-end integration test runner
 ├── requirements.txt            # Python dependencies
-├── CLAUDE.md                   # Detailed handover & development progress log
 └── README.md                   # Project documentation
 ```
 
@@ -219,33 +194,8 @@ Open **http://localhost:8000**. The API, dashboard, and Swagger docs (`/docs`) a
 
 ---
 
-## 🎓 Student & Campus Portal
-
-Open **http://localhost:8000/home** (or `/home` on the dev server) for the student-facing experience. Six demo profiles map to the real student groups in `cit_public.json`, so the timetable, exams and fest events match the solver output exactly.
-
-| Page | What it does |
-|---|---|
-| **Home** | Next class, attendance ring, projected SGPA/CGPA, exam alerts, approved fest events, today's mess menu, schedule-health badge (0 hard violations). |
-| **My timetable** | Week grid filtered to the student's group, with faculty, room and class details. |
-| **Attendance** | 75% target, "attend N more" / "can miss N" maths, present/absent logging, what-if simulator, CSV export. |
-| **Marks & CGPA** | Internal component breakdown per subject, grade points, credit-weighted SGPA/CGPA and semester trend. |
-| **Exam timetable** | The student's papers, AM/PM slots, rooms, half-capacity utilization and seat plans. |
-| **Planner** | Five-day agenda, fest events, contiguous free study windows and exam-week list. |
-| **Notes** | Course-tagged notes with create/edit/pin/delete, persisted in `data/portal_state.json`. |
-| **Campus life** | Approved Spectra events, "for my group" filter, clubs and a sample weekly mess menu. |
-
-![Student home](docs/assets/student-home-final.png)
-![Attendance](docs/assets/student-attendance.png)
-![Planner](docs/assets/student-planner.png)
-
-Student pages read the published timetable, exam allocations and fest bookings. Attendance and internal marks are deterministic **demo records** (the public dataset has no SIS data) and are labelled as such in the UI. The admin section keeps the solver, Spectra Week, NL booking, disruption and audit tools.
-
----
-
 ## 🎤 Judging Kit
 - [5-minute demo script](docs/demo_script.md) — pre-flight, timeline, exact clicks, recovery plan.
-- [Six-slide deck outline](docs/slide_deck.md) — titles, talking points, metrics, speaker notes.
-- [Judge Q&A prep](docs/qa_prep.md) — top five curveballs, rapid-fire facts, known limitations.
 
 ---
 
@@ -270,13 +220,6 @@ Student pages read the published timetable, exam allocations and fest bookings. 
 | **Validation** | `/api/validate` | GET | Run the deterministic validator bridge over the current schedule |
 | **Exports** | `/api/export/schedule`, `/api/export/save` | GET / POST | Export schedule in official schema format |
 | **Audit** | `/api/audit` | GET | Query full immutable audit event trail |
-| **Portal** | `/api/portal/students`, `/api/portal/home` | GET | Student profiles and dashboard payload |
-| **Portal** | `/api/portal/attendance`, `/api/portal/attendance/log` | GET / POST | Attendance summary and present/absent logging |
-| **Portal** | `/api/portal/attendance/export` | GET | Attendance CSV download |
-| **Portal** | `/api/portal/marks`, `/api/portal/exams` | GET | Marks/CGPA and student exam seat plans |
-| **Portal** | `/api/portal/planner`, `/api/portal/events`, `/api/portal/clubs`, `/api/portal/mess` | GET | Week planner, fest events, clubs, mess menu |
-| **Portal** | `/api/portal/notes`, `/api/portal/notes/{id}` | GET / POST / PUT / DELETE | Course notes CRUD |
-| **Portal** | `/api/portal/search` | GET | Campus-wide command-palette search |
 
 ---
 

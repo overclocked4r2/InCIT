@@ -1,4 +1,4 @@
-TOOL: <write which AI you are here before pasting, e.g. "Opus", "Codex", "DeepSeek">
+TOOL: Codex
 
 You are continuing a hackathon project called InCIT. Several different AIs work on it in turns, and each one can be cut off at any time because the owner uses free plans. So everything you need is in files inside the repo, and you must keep those files up to date. Never rely on chat memory.
 

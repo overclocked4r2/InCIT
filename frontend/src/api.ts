@@ -15,18 +15,7 @@ import type {
   DisruptionChange,
   AuditLogEntry,
   ValidationReport,
-  PortalStudent,
-  PortalHome,
-  AttendanceResponse,
-  AttendanceLogResponse,
-  MarksResponse,
-  ExamsResponse,
-  PlannerResponse,
-  EventsResponse,
-  ClubsResponse,
-  MessResponse,
-  Note,
-  PortalSearchResults,
+  ExamAssignment,
 } from './types';
 
 const BASE = '/api';
@@ -60,7 +49,7 @@ export const api = {
   sessions: () => request<Session[]>('/sessions'),
   courses: () => request<Course[]>('/courses'),
   bookingRequests: () => request<Record<string, unknown>>('/booking-requests'),
-  exams: () => request<unknown[]>('/exams'),
+  exams: () => request<ExamAssignment[]>('/exams'),
   calendar: () => request<Record<string, unknown>>('/calendar'),
 
   /* ── Solver & Timetable ── */
@@ -116,45 +105,6 @@ export const api = {
 
   /* ── Audit ── */
   audit: (limit = 100) => request<AuditLogEntry[]>(`/audit?limit=${limit}`),
-
-  /* ── Student portal ── */
-  portalStudents: () => request<PortalStudent[]>('/portal/students'),
-  portalHome: (studentId: string) =>
-    request<PortalHome>(`/portal/home?student_id=${encodeURIComponent(studentId)}`),
-  portalAttendance: (studentId: string) =>
-    request<AttendanceResponse>(`/portal/attendance?student_id=${encodeURIComponent(studentId)}`),
-  portalLogAttendance: (studentId: string, courseId: string, present: boolean) =>
-    request<AttendanceLogResponse>('/portal/attendance/log', {
-      method: 'POST',
-      body: JSON.stringify({ student_id: studentId, course_id: courseId, present }),
-    }),
-  portalResetAttendance: (studentId: string) =>
-    request<{ status: string }>(`/portal/attendance?student_id=${encodeURIComponent(studentId)}`, { method: 'DELETE' }),
-  portalAttendanceCsvUrl: (studentId: string) =>
-    `${BASE}/portal/attendance/export?student_id=${encodeURIComponent(studentId)}`,
-  portalMarks: (studentId: string) =>
-    request<MarksResponse>(`/portal/marks?student_id=${encodeURIComponent(studentId)}`),
-  portalExams: (studentId: string) =>
-    request<ExamsResponse>(`/portal/exams?student_id=${encodeURIComponent(studentId)}`),
-  portalPlanner: (studentId: string) =>
-    request<PlannerResponse>(`/portal/planner?student_id=${encodeURIComponent(studentId)}`),
-  portalEvents: (studentId: string) =>
-    request<EventsResponse>(`/portal/events?student_id=${encodeURIComponent(studentId)}`),
-  portalClubs: () => request<ClubsResponse>('/portal/clubs'),
-  portalMess: () => request<MessResponse>('/portal/mess'),
-  portalNotes: (studentId: string) =>
-    request<Note[]>(`/portal/notes?student_id=${encodeURIComponent(studentId)}`),
-  portalCreateNote: (data: { student_id: string; title: string; body: string; course_id?: string | null; pinned?: boolean }) =>
-    request<Note>('/portal/notes', { method: 'POST', body: JSON.stringify(data) }),
-  portalUpdateNote: (id: string, data: { student_id: string; title?: string; body?: string; course_id?: string | null; pinned?: boolean }) =>
-    request<Note>(`/portal/notes/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
-  portalDeleteNote: (id: string, studentId: string) =>
-    request<{ status: string }>(`/portal/notes/${id}?student_id=${encodeURIComponent(studentId)}`, { method: 'DELETE' }),
-  portalSearch: (q: string, studentId?: string) => {
-    const params = new URLSearchParams({ q });
-    if (studentId) params.set('student_id', studentId);
-    return request<PortalSearchResults>(`/portal/search?${params.toString()}`);
-  },
 
   /* ── System ── */
   reset: () => request<{ status: string }>('/reset', { method: 'POST' }),

@@ -36,8 +36,6 @@ class AppState:
         self.published_at: str | None = None
         self.version: int = 0
         self.versions: list[dict] = []  # archived versions
-        # Student portal store: attendance overrides, attendance log, notes.
-        self.portal: dict[str, Any] = {"attendance": {}, "attendance_log": [], "notes": []}
     
     def add_audit(self, action: str, entity_type: str, entity_id: str,
                   actor: str = "system", details: dict | None = None):
