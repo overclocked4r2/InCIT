@@ -14,7 +14,10 @@ explanations show their code-derived reason codes directly.
 
 - Claude: built most of the project foundation.
 - Opus, through Antigravity: continued development before the handoff process.
-- Codex: removed the out-of-scope student portal and unused database layer in Step 0, then created the project declaration files in Step 1.
+- Codex: removed the out-of-scope student portal and unused database layer in
+  Step 0; created the declarations, validity gate, solver improvements,
+  approval flow, demo roles, booking/forms, Gemini draft wrapper, faculty
+  assistant, explanations, and role-aware frontend in later recorded steps.
 
 Prompts are kept in `prompts/`; handoff instructions are kept in `handoff/`.
 

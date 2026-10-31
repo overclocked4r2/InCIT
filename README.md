@@ -1,239 +1,143 @@
-# InCIT — Institutional Timetable & Resource Scheduling Engine
+# InCIT
 
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
-[![OR-Tools](https://img.shields.io/badge/Google_OR--Tools-CP--SAT-4285F4?logo=google&logoColor=white)](https://developers.google.com/optimization)
-[![React](https://img.shields.io/badge/React-19.0-61DAFB?logo=react&logoColor=black)](https://react.dev)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
-[![Vite](https://img.shields.io/badge/Vite-8.0-646CFF?logo=vite&logoColor=white)](https://vitejs.dev)
-[![TailwindCSS](https://img.shields.io/badge/Tailwind_CSS-v4-38B2AC?logo=tailwindcss&logoColor=white)](https://tailwindcss.com)
-[![Validation](https://img.shields.io/badge/Official_Validator-0_Hard_Violations-success)](file:///exports/schedule.json)
+InCIT is a timetable and campus-room scheduling demo for the Zephyr Hackathon / CrunchWeek dataset. It creates a weekly timetable, checks room booking requests, schedules exams, and lets staff propose timetable changes for Admin approval.
 
-**InCIT** is an institutional resource scheduling platform built for the **Zephyr Hackathon / CrunchWeek**. It combines Google's OR-Tools CP-SAT constraint programming solver, a prioritized booking engine for campus festivals, an exam room allocator, and a dual-language (English + Hindi) natural language booking parser into an interactive, real-time web dashboard.
+The important safety rule is simple: AI can help turn words into a draft, but only InCIT's own code and the organiser validator decide whether a timetable, booking, or change is valid.
 
----
+## What it does
 
-## 🌟 Key Capabilities & Highlights
+- Builds a timetable from the 189-session public dataset with OR-Tools.
+- Checks hard rules such as room capacity, faculty and group clashes, lunch, lab slots, accessibility, fixed slots, and availability.
+- Scores Spectra bookings by the dataset's priority rules and explains every rejection or alternative.
+- Lets Faculty and Department coordinators submit change proposals; an Admin must approve a proposal before it changes the timetable.
+- Provides timetable views by room, faculty, group, and day, including a phone-friendly read-only view.
+- Accepts English and Hinglish booking requests. Gemini is optional and only fills editable drafts or phrases code-derived explanations.
 
-1. **Deterministic Constraint Satisfaction (CP-SAT)**:
-   - Implements **all Hard Constraints H1 through H14** (faculty conflict-free, room capacity, equipment/type match, student group non-overlap, basket slot synchronization, daily faculty hour caps, lunch preservation, lab start restrictions).
-   - Solves the complete 189-session institutional dataset in under **15 seconds** with **0 Hard Violations**.
-   - Minimises the solver-side soft objectives (**S1** faculty avoid-preferences, **S5** room utilisation, **S6** P9 usage); the official validator additionally scores S2–S4.
-
-2. **Spectra Fest-Week Booking Engine**:
-   - Makes booking decisions using the official priority order: `exam`, `regular_session`, `institute_event`, `guest_lecture`, `department_event`, then `club_event`; equal requests use the earlier submission time.
-   - Uses the requester's role to set the category (Admin, Faculty, Department coordinator, or Club), rejects cancelled requests, and offers clear alternatives where possible.
-
-3. **Semester Exam Scheduler**:
-   - Automatically allocates 41 semester exams into half-capacity rooms to ensure social distancing and strict non-cheating conditions.
-   - Avoids group clashes across AM/PM exam slots; faculty invigilator rosters are a planned extension.
-
-4. **Dual-Language Natural Language Booking (English & Hindi)**:
-   - Regex-powered bilingual NLP engine extracting attendee counts, time windows, day preferences, accessibility needs, and equipment requests.
-   - Understands native Hindi input (e.g., *"कल दोपहर 2 बजे 50 लोगों के लिए सेमिनार हॉल चाहिए"*).
-
-5. **Dynamic Disruption Simulation & Re-Solving**:
-   - Simulates emergency room closures (e.g., maintenance), sudden faculty leave, and urgent session insertions.
-   - Instant re-solve capability with audit logging and stability metrics.
-
-6. **Interactive Dark-Mode Web Dashboard**:
-   - Modern React 19 + TypeScript + Vite frontend.
-   - Interactive Timetable Grid (Day × Period matrix) filterable by Faculty, Room, or Student Group.
-   - Fest-week approvals view, live bilingual NL booking sandbox, disruption tester, and one-click JSON export.
-
-## 🏆 Official Validator Benchmark Results
-
-Both output schedules were tested directly against the official CrunchWeek StarterPack `validator.py`:
-
-### Baseline Schedule (`exports/schedule.json`)
-```
-Dataset: cit-public-v1   Schedule says: cit-public-v1   Team: InCIT
-Hard violations: 0  {}
-Soft penalty: 203  {'S1': 0, 'S2': 80, 'S3': 42, 'S4': 81, 'S5': 0, 'S6': 0}
-Bookings: score 67.0 | approved 22, alternatives 1, rejected 2, session overrides 0, priority inversions 0
-Exam soft penalty: 0
-```
-
-### Disrupted Schedule (`exports/schedule_after.json`)
-```
-Dataset: cit-public-v1   Schedule says: cit-public-v1   Team: InCIT
-Hard violations: 0  {}
-Soft penalty: 230  {'S1': 0, 'S2': 116, 'S3': 15, 'S4': 99, 'S5': 0, 'S6': 0}
-Bookings: score 63.0 | approved 20, alternatives 3, rejected 2, session overrides 0, priority inversions 0
-Exam soft penalty: 0
-Stability: 185 sessions moved (179 changed time, 6 room only)
-```
-
----
-
-## 🏗️ System Architecture
+## Architecture
 
 ```mermaid
-graph TD
-    User([User / Browser]) <--> Frontend[React 19 + Vite Frontend]
-    Frontend <--> API[FastAPI Backend :8000]
-    
-    subgraph Core Engine
-        API <--> Solver[OR-Tools CP-SAT Solver]
-        API <--> Booking[Fest-Week Booking Engine]
-        API <--> Exam[Exam Scheduler]
-        API <--> NL[Bilingual NL Parser]
-        API <--> State[Thread-Safe In-Memory State]
-    end
-    
-    subgraph Data & Storage
-        State <--> Dataset[(cit_public.json)]
-        State <--> Exports[exports/*.json]
-    end
-
-    Exports --> Validator[CrunchWeek validator.py]
+flowchart LR
+    Browser[React + Vite dashboard] <--> API[FastAPI API]
+    API <--> State[In-memory demo state]
+    API --> Solver[OR-Tools timetable solver]
+    API --> Booking[Deterministic booking engine]
+    API --> Exams[Exam scheduler]
+    API --> Gate[Validity gate]
+    API -. optional draft or phrasing .-> Gemini[Gemini API]
+    Dataset[cit_public.json] --> Solver
+    Dataset --> Booking
+    Solver --> Gate
+    Booking --> Gate
+    Gate --> Exports[Schedule JSON exports]
+    Exports --> Validator[Organiser validator.py]
 ```
 
----
+## Tech stack
 
-## 📁 Repository Structure
+- Backend: Python, FastAPI, Pydantic, OR-Tools CP-SAT
+- Frontend: React, TypeScript, Vite, Tailwind CSS
+- Data: the organiser's `cit_public.json` dataset and JSON schedule exports
+- Optional AI: Gemini API, with prompts kept in `prompts/`
 
-```
-InCIT/
-├── app/                        # FastAPI Backend Application
-│   ├── main.py                 # REST API endpoints & route definitions (40+ endpoints)
-│   ├── solver.py               # Google OR-Tools CP-SAT solver implementation
-│   ├── booking_engine.py       # Fest-week / Spectra priority booking system
-│   ├── exam_scheduler.py       # Exam room & slot scheduler (half capacity)
-│   ├── nl_parser.py            # Bilingual English/Hindi natural language parser
-│   ├── validator.py            # Deterministic interval validation engine
-│   ├── validator_bridge.py     # Adapter to official CrunchWeek validator
-│   ├── state.py                # In-memory runtime state, versioning, audit trail
-│   ├── schemas.py              # Pydantic v2 schemas for all inputs/outputs
-│   └── config.py               # Global settings, paths, CORS configurations
-├── frontend/                   # React 19 Frontend Dashboard
-│   ├── src/
-│   │   ├── components/         # Layout and reusable UI components
-│   │   ├── pages/
-│   │   │   ├── Exams.tsx       # Exam slots, rooms and half-capacity seat plans
-│   │   │   ├── Dashboard.tsx   # Admin system overview, KPIs, and status metrics
-│   │   │   ├── Timetable.tsx   # Admin solver trigger + Day × Period matrix grid
-│   │   │   ├── SpectraWeek.tsx # Fest-week bookings & priority decisions
-│   │   │   ├── NLBooking.tsx   # Conversational booking sandbox (EN/HI)
-│   │   │   ├── Disruption.tsx  # Outage simulator & dynamic re-solver
-│   │   │   └── Audit.tsx       # Audit trail, version history & export
-│   │   ├── components/CommandPalette.tsx  # Keyboard page navigation
-│   │   ├── api.ts              # Typed API client for FastAPI
-│   │   └── types.ts            # TypeScript interfaces matching backend models
-│   ├── package.json
-│   └── vite.config.ts
-├── data/
-│   └── cit_public.json         # Official 189-session benchmark dataset
-├── exports/
-│   ├── schedule.json           # Baseline timetable export
-│   └── schedule_after.json     # Post-disruption timetable export
-├── tests/
-│   ├── test_validator.py       # Unit tests for validation logic
-│   ├── test_nl_parser.py       # Bilingual parser regression tests
-│   └── solver_e2e.py           # End-to-end integration test runner
-├── requirements.txt            # Python dependencies
-└── README.md                   # Project documentation
-```
+## Run from a clean machine
 
----
+### You need
 
-## 🚀 Quickstart Guide
+- Python 3.11 or newer
+- Node.js 18 or newer with npm
+- The organiser StarterPack folder if you want to run the official validator
 
-### Prerequisites
-- Python 3.11+
-- Node.js 18+ and npm
+### 1. Get the code and install Python packages
 
-### 1. Backend Setup
-```bash
-# Clone the repository and enter the directory
+```powershell
+git clone <YOUR_REPOSITORY_URL>
 cd InCIT
-
-# Create and activate virtual environment
 python -m venv .venv
-source .venv/bin/activate       # On Windows: .\.venv\Scripts\activate
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Run unit tests
-pytest tests/ -q
-
-# Start the FastAPI server
-uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
 ```
-Interactive Swagger documentation is available at **http://localhost:8000/docs**.
 
-### 2. Frontend Setup
-In a new terminal:
+On macOS or Linux, activate the environment with:
+
 ```bash
-cd InCIT/frontend
+source .venv/bin/activate
+```
 
-# Install dependencies
+### 2. Install the frontend packages
+
+```powershell
+cd frontend
 npm install
+cd ..
+```
 
-# Start Vite dev server
+### 3. Run the app
+
+Open two terminals in the repository. In the first terminal, start the API:
+
+```powershell
+.\.venv\Scripts\python.exe -m uvicorn app.main:app --port 8000 --reload
+```
+
+In the second terminal, start the frontend:
+
+```powershell
+cd frontend
 npm run dev
 ```
-Open **http://localhost:5173** to access the dashboard.
 
-### 3. Run Official Validator
-Verify the output files against the official StarterPack validator:
-```bash
-# Replace STARTER_PACK with the organiser starter-pack folder.
-# Validate Baseline
-python STARTER_PACK/validator.py --data data/cit_public.json --schedule exports/schedule.json
+Open the address Vite prints (normally `http://localhost:5173`). The API documentation is at `http://localhost:8000/docs`.
 
-# Validate Disrupted
-python STARTER_PACK/validator.py --data data/cit_public.json --schedule exports/schedule_after.json --baseline exports/schedule.json --disruption STARTER_PACK/examples/sample_disruption.json
+### 4. Optional Gemini setup
+
+Copy `.env.example` to `.env`, then add a Gemini key only if you want AI draft parsing and explanation phrasing. Do not commit `.env` or a real key.
+
+Without a key, manual forms, deterministic booking checks, timetable views, and code-derived explanations still work.
+
+### 5. Run checks
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest -q
+cd frontend
+npm run build
+cd ..
 ```
-
-### 4. Run with Docker (single container)
-The multi-stage image builds the React dashboard and serves it from FastAPI, so the whole product runs on one port:
-```bash
-docker compose up --build
-```
-Open **http://localhost:8000**. The API, dashboard, and Swagger docs (`/docs`) are all served by the same container. No Node.js or Python install is required on the host.
-
----
 
 ## Demo accounts
 
-| Role | Username | Password |
-| --- | --- | --- |
-| Admin | `admin@incit.demo` | `admin123` |
-| Department coordinator | `coordinator@incit.demo` | `coord123` |
-| Faculty | `faculty@incit.demo` | `faculty123` |
-| Club representative | `club@incit.demo` | `club123` |
+| Role | Username | Password | Main use |
+| --- | --- | --- | --- |
+| Admin | `admin@incit.demo` | `admin123` | Approve timetable proposals and reset demo data |
+| Department coordinator | `coordinator@incit.demo` | `coord123` | Generate timetables and submit changes |
+| Faculty | `faculty@incit.demo` | `faculty123` | Read timetables and request a class change |
+| Club representative | `club@incit.demo` | `club123` | Create room-booking requests |
 
+## A quick demo path
 
-## 🎤 Judging Kit
-- [5-minute demo script](docs/demo_script.md) — pre-flight, timeline, exact clicks, recovery plan.
+1. Sign in as the Department coordinator and open **Solver & timetable**.
+2. Filter by a room, faculty member, or student group to find a class.
+3. Open **NL booking** to prepare a room booking or a faculty change request.
+4. Sign in as Admin and open **Disruptions & approvals** to approve or reject a pending class-change proposal.
 
----
+## Validate the exported schedules
 
-## 📡 API Endpoints Overview
+Set `STARTER_PACK` to the path of the organiser's StarterPack folder, then run these commands from the InCIT repository:
 
-| Category | Endpoint | Method | Description |
-|---|---|---|---|
-| **System** | `/api/health` | GET | Health check status |
-| **System** | `/api/dashboard` | GET | Overall KPI stats and schedule state |
-| **Dataset** | `/api/dataset/status` | GET | Status of loaded rooms, sessions, faculty |
-| **Dataset** | `/api/rooms`, `/api/faculty`, `/api/student-groups`, `/api/sessions` | GET | Query dataset entities |
-| **Solver** | `/api/solver/generate` | POST | Trigger CP-SAT solver with configurable timeout |
-| **Timetable** | `/api/timetable` | GET | Fetch active schedule with filters (room, faculty, group, day) |
-| **Timetable** | `/api/timetable/publish`, `/api/timetable/archive` | POST | Publish or archive drafts |
-| **Fest Week** | `/api/fest-week` | GET | View prioritized room booking decisions |
-| **Fest Week** | `/api/fest-week/reprocess` | POST | Re-evaluate bookings against current timetable |
-| **NL Booking** | `/api/nl-parse` | POST | Parse natural language request (English/Hindi) |
-| **NL Booking** | `/api/nl-book` | POST | Parse and automatically place a booking |
-| **Disruptions** | `/api/disruption/apply` | POST | Apply faculty/room outages or add/remove sessions |
-| **Disruptions** | `/api/disruption/upload` | POST | Ingest disruption JSON file |
-| **Reschedule** | `/api/reschedule` | POST | Check conflicts and move a single session |
-| **Validation** | `/api/validate` | GET | Run the deterministic validator bridge over the current schedule |
-| **Exports** | `/api/export/schedule`, `/api/export/save` | GET / POST | Export schedule in official schema format |
-| **Audit** | `/api/audit` | GET | Query full immutable audit event trail |
+```powershell
+python "$env:STARTER_PACK/validator.py" --data data/cit_public.json --schedule exports/schedule.json
+python "$env:STARTER_PACK/validator.py" --data data/cit_public.json --schedule exports/schedule_after.json --disruption "$env:STARTER_PACK/examples/sample_disruption.json" --baseline exports/schedule.json
+```
 
----
+The committed baseline export was last checked with 0 hard violations and a soft penalty of 3. The committed disruption export is intentionally an older 185-move example; Step 12 regenerates it through the app before submission.
 
-## 👥 Hackathon Team
-**Team InCIT**  
-Developed for Zephyr Hackathon / CrunchWeek.
+## Known limitations
+
+- This is a demo: state is kept in memory and resets when the server restarts.
+- Demo credentials are intentionally simple and are not suitable for a real deployment.
+- Gemini is optional. It never makes a validity, priority, or approval decision, and the app falls back to deterministic/manual paths if it is down.
+- There is no deployed public link yet.
+- The app is designed around the supplied public dataset, not a production identity or database system.
+
+## AI use and safety
+
+See [AI_USAGE.md](AI_USAGE.md) for the product's optional Gemini use, the AI tools used to build the project, and the rules that keep validity decisions in deterministic code.

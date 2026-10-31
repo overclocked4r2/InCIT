@@ -3,7 +3,7 @@
 Keep this file short. Replace old text instead of adding to it.
 
 ## Current step
-**Step 11** (not started). See `handoff/PLAN.md`.
+**Step 12** (not started). See `handoff/PLAN.md`.
 
 ## IN PROGRESS
 (nothing. Before each change, write one line here: what and which files. Clear it when done.)
@@ -33,6 +33,7 @@ Keep this file short. Replace old text instead of adding to it.
 - Repaired Gemini API integration and booking persistence: the API key travels in a header, model HTTP failures log safe details and retry Flash-Lite, and approved chat bookings reserve their slot and render as timetable booking entries. All 72 tests and the frontend build pass.
 - Completed Step 9b faculty assistant and explanations: a strict Gemini change draft goes to the solver, then the deterministic validity gate, and finally the existing Admin approval gate. Class and booking “why” answers are built from reason codes and fall back to those codes when Gemini is unavailable. All 75 tests and the frontend build pass.
 - Completed Step 10 role-aware frontend: the four roles see focused navigation and dashboard actions, timetable filters cover room/faculty/group views, Admin controls are not shown to read-only roles, and narrow screens use horizontal navigation plus a scrollable timetable with a fixed period label. Frontend build passes.
+- Completed Step 11 documentation: replaced stale benchmark and feature claims with a clean-machine README, current architecture diagram, setup/check commands, demo accounts, validator instructions, and honest limitations. Reconciled `AI_USAGE.md` with the AI log; 75 tests and the frontend build pass.
 
 ## Decided by the owner: follow the PS
 - The problem statement decides every product question. Do not ask the owner to choose features. If the PS is silent, pick the simplest option that satisfies it and note it under "Decisions made".
@@ -75,6 +76,7 @@ Keep this file short. Replace old text instead of adding to it.
 - Step 9a uses Gemini only to fill a draft. The app ignores model-supplied priority, validates its JSON locally, and keeps the existing deterministic placement checks as the only validity decision.
 - Step 9b freezes other class times while the solver finds a compatible room for the requested class; its result is checked against the live timetable before a pending proposal is recorded.
 - Step 10 keeps the API as the authority for permissions; hiding an unsuitable frontend action improves clarity but does not replace backend role checks.
+- Step 11 documents the organiser validator through a user-provided `STARTER_PACK` environment variable so no owner-specific path appears in the README.
 - The later user-requested UI steps are tracked in `HANDOFF.md`; do not start them until the owner says "continue".
 
 ## Known issues / watch out
