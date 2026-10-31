@@ -20,8 +20,8 @@
    - Minimises the solver-side soft objectives (**S1** faculty avoid-preferences, **S5** room utilisation, **S6** P9 usage); the official validator additionally scores S2–S4.
 
 2. **Spectra Fest-Week Booking Engine**:
-   - Manages competing club and departmental room requests using official priority order (`academics > institute_event > club_major > club_event > personal`).
-   - Implements strict role-category caps (Student, Faculty, Dean) and automated alternative venue recommendation.
+   - Makes booking decisions using the official priority order: `exam`, `regular_session`, `institute_event`, `guest_lecture`, `department_event`, then `club_event`; equal requests use the earlier submission time.
+   - Uses the requester's role to set the category (Admin, Faculty, Department coordinator, or Club), rejects cancelled requests, and offers clear alternatives where possible.
 
 3. **Semester Exam Scheduler**:
    - Automatically allocates 41 semester exams into half-capacity rooms to ensure social distancing and strict non-cheating conditions.

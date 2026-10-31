@@ -14,16 +14,13 @@ from collections import defaultdict
 from typing import Any
 
 
-CAT_WEIGHT = {"institute_event": 5, "guest_lecture": 4, "department_event": 3, "club_event": 2}
 MAX_PERIOD = 13
 LAST_TEACHING = 9
 
 
 def effective_category(data: dict, req: dict) -> str:
-    order = data["priority_order"]
-    cap = data["role_category_cap"].get(req["role"], "club_event")
-    a = order.index(req["requested_category"]) if req["requested_category"] in order else len(order) - 1
-    return order[max(a, order.index(cap))]
+    """Return the category assigned by the requester's role, never their text."""
+    return data["role_category_cap"].get(req["role"], "club_event")
 
 
 def outranks(data: dict, r1: dict, r2: dict) -> bool:
@@ -102,7 +99,16 @@ def process_booking_requests(
         eff_cat = effective_category(data, req)
         
         # Try to find a valid placement
-        placement = _find_placement(req, rooms, room_busy, room_unavail, group_occ, data)
+        placement = _find_placement(
+            req,
+            rooms,
+            room_busy,
+            room_unavail,
+            group_occ,
+            data,
+            set(sessions),
+            allow_session_displacement=(eff_cat == "institute_event"),
+        )
         
         if placement is None:
             bookings.append({
@@ -114,33 +120,39 @@ def process_booking_requests(
         
         best_room_id, best_day, best_start, best_end, is_exact = placement
         
-        # Check if we need to displace any sessions (only for institute_event)
-        displaced_sessions = []
-        if eff_cat == "institute_event" or data["priority_order"].index(eff_cat) <= data["priority_order"].index("institute_event"):
-            for p in range(best_start, best_end + 1):
-                for occ in room_busy.get((best_room_id, best_day, p), []):
-                    if occ.startswith("BR-"):
-                        continue  # Another booking, not a session
-                    if occ not in [ds["session_id"] for ds in displaced_sessions]:
-                        displaced_sessions.append({"session_id": occ, "displaced_by": req_id})
-        
-        # Don't displace if we're not institute_event level
-        if displaced_sessions and data["priority_order"].index(eff_cat) > data["priority_order"].index("institute_event"):
-            # Can't displace, try to find alternative without displacement
-            displaced_sessions = []
-            # Check if slot is actually free
-            slot_free = True
-            for p in range(best_start, best_end + 1):
-                if room_busy.get((best_room_id, best_day, p), []):
-                    slot_free = False
-                    break
-            if not slot_free:
+        # An exact, approved institute event may replace teaching in its room,
+        # but every affected session must first have a safe new slot.
+        displaced_ids = {
+            occ
+            for p in range(best_start, best_end + 1)
+            for occ in room_busy.get((best_room_id, best_day, p), [])
+            if occ in sessions
+        }
+        planned_overrides: list[dict[str, Any]] = []
+        if displaced_ids:
+            planned = _plan_session_moves(
+                displaced_ids,
+                req_id,
+                timetable_assignments,
+                sessions,
+                rooms,
+                room_busy,
+                room_unavail,
+                group_occ,
+                data,
+                best_room_id,
+                best_day,
+                best_start,
+                best_end,
+            )
+            if planned is None:
                 bookings.append({
                     "request_id": req_id,
                     "status": "rejected",
-                    "reason": f"Room {best_room_id} is occupied and only institute events may displace regular sessions."
+                    "reason": "The requested room is occupied and the affected class cannot be moved safely."
                 })
                 continue
+            planned_overrides, room_busy, group_occ = planned
         
         # Record booking
         status = "approved" if is_exact else "alternative_offered"
@@ -159,35 +171,19 @@ def process_booking_requests(
         
         bookings.append(booking_entry)
         
-        # Mark room as busy
-        for p in range(best_start, best_end + 1):
-            room_busy[(best_room_id, best_day, p)].append(req_id)
-        
-        # Handle displaced sessions
-        for ds in displaced_sessions:
-            sid = ds["session_id"]
-            s = sessions.get(sid)
-            if s:
-                # Find alternative slot for displaced session
-                alt = _find_session_alternative(sid, s, timetable_assignments, rooms, room_busy, room_unavail, data)
-                if alt:
-                    alt_day, alt_start, alt_room = alt
-                    session_overrides.append({
-                        "session_id": sid,
-                        "day": alt_day,
-                        "start_period": alt_start,
-                        "room_id": alt_room,
-                        "displaced_by": req_id,
-                    })
-                    # Update room_busy
-                    for p in range(alt_start, alt_start + s["duration"]):
-                        room_busy[(alt_room, alt_day, p)].append(sid)
+        # _plan_session_moves has already reserved the event and new class
+        # slots. Ordinary bookings only need to reserve their room now.
+        if not displaced_ids:
+            for p in range(best_start, best_end + 1):
+                room_busy[(best_room_id, best_day, p)].append(req_id)
+        session_overrides.extend(planned_overrides)
     
     return {"bookings": bookings, "session_overrides": session_overrides}
 
 
 def _find_placement(
-    req: dict, rooms: dict, room_busy: dict, room_unavail: dict, group_occ: dict, data: dict
+    req: dict, rooms: dict, room_busy: dict, room_unavail: dict, group_occ: dict,
+    data: dict, session_ids: set[str], allow_session_displacement: bool = False,
 ) -> tuple[str, str, int, int, bool] | None:
     """Find best valid placement for a booking request.
     
@@ -232,7 +228,10 @@ def _find_placement(
                 continue
             
             for rid in compat_rooms:
-                if _slot_available(rid, day, start_p, end_p, room_busy, room_unavail, mandatory_groups, group_occ):
+                if _slot_available(
+                    rid, day, start_p, end_p, room_busy, room_unavail,
+                    mandatory_groups, group_occ, session_ids, allow_session_displacement,
+                ):
                     return (rid, day, start_p, end_p, True)
     
     # Try alternative placements (outside exact windows)
@@ -243,7 +242,10 @@ def _find_placement(
             if end_p > MAX_PERIOD:
                 continue
             for rid in compat_rooms:
-                if _slot_available(rid, day, start_p, end_p, room_busy, room_unavail, mandatory_groups, group_occ):
+                if _slot_available(
+                    rid, day, start_p, end_p, room_busy, room_unavail,
+                    mandatory_groups, group_occ, session_ids, False,
+                ):
                     return (rid, day, start_p, end_p, False)
     
     return None
@@ -251,10 +253,12 @@ def _find_placement(
 
 def _slot_available(
     room_id: str, day: str, start_p: int, end_p: int,
-    room_busy: dict, room_unavail: dict, mandatory_groups: list, group_occ: dict
+    room_busy: dict, room_unavail: dict, mandatory_groups: list, group_occ: dict,
+    session_ids: set[str], allow_session_displacement: bool,
 ) -> bool:
     for p in range(start_p, end_p + 1):
-        if room_busy.get((room_id, day, p), []):
+        occupied_by = room_busy.get((room_id, day, p), [])
+        if occupied_by and (not allow_session_displacement or any(occ not in session_ids for occ in occupied_by)):
             return False
         if (day, p) in room_unavail.get(room_id, set()):
             return False
@@ -262,6 +266,60 @@ def _slot_available(
             if group_occ.get((g, day, p), []):
                 return False
     return True
+
+
+def _plan_session_moves(
+    displaced_ids: set[str], request_id: str, assignments: dict[str, tuple[str, int, str]],
+    sessions: dict[str, dict], rooms: dict, room_busy: dict, room_unavail: dict,
+    group_occ: dict, data: dict, event_room: str, event_day: str,
+    event_start: int, event_end: int,
+) -> tuple[list[dict[str, Any]], dict, dict] | None:
+    """Reserve an event and relocate every session it displaces, or reject it."""
+    planned_busy = defaultdict(list, {key: list(value) for key, value in room_busy.items()})
+    planned_groups = defaultdict(list, {key: list(value) for key, value in group_occ.items()})
+
+    for sid in displaced_ids:
+        old_day, old_start, old_room = assignments[sid]
+        _remove_session_occupancy(sid, sessions[sid], old_day, old_start, old_room, planned_busy, planned_groups)
+    for period in range(event_start, event_end + 1):
+        planned_busy[(event_room, event_day, period)].append(request_id)
+
+    overrides = []
+    for sid in sorted(displaced_ids):
+        session = sessions[sid]
+        alternative = _find_session_alternative(
+            sid, session, assignments, rooms, planned_busy, room_unavail, planned_groups, data
+        )
+        if alternative is None:
+            return None
+        day, start, room_id = alternative
+        overrides.append({
+            "session_id": sid,
+            "day": day,
+            "start_period": start,
+            "room_id": room_id,
+            "displaced_by": request_id,
+        })
+        _add_session_occupancy(sid, session, day, start, room_id, planned_busy, planned_groups)
+    return overrides, planned_busy, planned_groups
+
+
+def _remove_session_occupancy(
+    sid: str, session: dict, day: str, start: int, room_id: str, room_busy: dict, group_occ: dict
+) -> None:
+    for period in range(start, start + session["duration"]):
+        room_busy[(room_id, day, period)].remove(sid)
+        for group in session["groups"]:
+            group_occ[(group, day, period)].remove(sid)
+
+
+def _add_session_occupancy(
+    sid: str, session: dict, day: str, start: int, room_id: str, room_busy: dict, group_occ: dict
+) -> None:
+    for period in range(start, start + session["duration"]):
+        room_busy[(room_id, day, period)].append(sid)
+        for group in session["groups"]:
+            group_occ[(group, day, period)].append(sid)
 
 
 def _rejection_reason(req: dict, rooms: dict, room_busy: dict, room_unavail: dict, data: dict) -> str:
@@ -312,7 +370,7 @@ def _alternative_reason(req: dict, room_id: str, day: str, start: int, end: int,
 
 def _find_session_alternative(
     sid: str, session: dict, assignments: dict,
-    rooms: dict, room_busy: dict, room_unavail: dict, data: dict
+    rooms: dict, room_busy: dict, room_unavail: dict, group_occ: dict, data: dict
 ) -> tuple[str, int, str] | None:
     """Find an alternative slot for a displaced session."""
     duration = session["duration"]
@@ -356,6 +414,9 @@ def _find_session_alternative(
                     continue
                 # Room not busy
                 if any(room_busy.get((rid, day, p), []) for p in periods):
+                    continue
+                # Do not create a group clash while moving the class.
+                if any(group_occ.get((group, day, p), []) for group in session["groups"] for p in periods):
                     continue
                 return (day, start_p, rid)
     
