@@ -48,8 +48,8 @@ export function App() {
       <Route element={<Layout user={user} onLogout={logout} />}>
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="exams" element={<ExamsPage />} />
-        <Route path="dashboard" element={<DashboardPage />} />
-        <Route path="timetable" element={<TimetablePage />} />
+        <Route path="dashboard" element={<DashboardPage user={user} />} />
+        <Route path="timetable" element={<TimetablePage role={user.role} />} />
         <Route path="booking" element={<NLBookingPage />} />
         <Route path="spectra" element={<SpectraWeekPage />} />
         <Route path="disruption" element={<DisruptionPage />} />

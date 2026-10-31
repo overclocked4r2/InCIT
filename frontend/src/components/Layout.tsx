@@ -25,7 +25,12 @@ const ADMIN_NAV: NavItem[] = [
   { to: '/audit', label: 'Audit trail', icon: '◶' },
 ];
 
-const ALL_NAV = ADMIN_NAV;
+const ROLE_NAV: Record<string, NavItem[]> = {
+  admin: ADMIN_NAV,
+  department_coordinator: ADMIN_NAV.filter(item => !['/audit'].includes(item.to)),
+  faculty: ADMIN_NAV.filter(item => ['/dashboard', '/timetable', '/booking'].includes(item.to)),
+  club_representative: ADMIN_NAV.filter(item => ['/dashboard', '/timetable', '/booking', '/spectra'].includes(item.to)),
+};
 
 function NavSection({ title, items }: { title: string; items: NavItem[] }) {
   return (
@@ -60,6 +65,7 @@ export function Layout({ user, onLogout }: LayoutProps) {
   const [health, setHealth] = useState<string>('…');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const navItems = ROLE_NAV[user.role] ?? ROLE_NAV.faculty;
 
   useEffect(() => {
     api.health().then(h => setHealth(h.status)).catch(() => setHealth('offline'));
@@ -76,14 +82,14 @@ export function Layout({ user, onLogout }: LayoutProps) {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
-  const current = ALL_NAV.find(n => location.pathname === n.to)
-    ?? ALL_NAV.find(n => location.pathname.startsWith(n.to));
+  const current = ADMIN_NAV.find(n => location.pathname === n.to)
+    ?? ADMIN_NAV.find(n => location.pathname.startsWith(n.to));
   const today = new Date().toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' });
 
   return (
     <div className="flex min-h-dvh">
       <aside
-        className={`fixed top-0 left-0 z-40 h-dvh flex flex-col bg-[var(--color-surface-1)] border-r border-[var(--color-border)] transition-all duration-300 ease-in-out ${
+        className={`fixed top-0 left-0 z-40 hidden h-dvh flex-col bg-[var(--color-surface-1)] border-r border-[var(--color-border)] transition-all duration-300 ease-in-out md:flex ${
           sidebarOpen ? 'w-60' : 'w-16'
         }`}
       >
@@ -100,7 +106,7 @@ export function Layout({ user, onLogout }: LayoutProps) {
         </div>
 
         <nav className="flex-1 py-1 px-2 overflow-y-auto">
-          <NavSection title="Scheduling" items={ADMIN_NAV} />
+          <NavSection title="Scheduling" items={navItems} />
         </nav>
 
         <div className="px-2 py-3 border-t border-[var(--color-border)] space-y-2 shrink-0">
@@ -122,7 +128,7 @@ export function Layout({ user, onLogout }: LayoutProps) {
         </div>
       </aside>
 
-      <main className={`min-w-0 transition-all duration-300 ${sidebarOpen ? 'ml-60 w-[calc(100%-15rem)]' : 'ml-16 w-[calc(100%-4rem)]'}`}>
+      <main className={`min-w-0 w-full transition-all duration-300 ${sidebarOpen ? 'md:ml-60 md:w-[calc(100%-15rem)]' : 'md:ml-16 md:w-[calc(100%-4rem)]'}`}>
         <header className="sticky top-0 z-30 h-14 border-b border-[var(--color-border)] bg-[var(--color-surface)]/80 backdrop-blur-xl flex items-center gap-2 px-3 sm:gap-3 sm:px-6">
           <h1 className="hidden sm:block shrink-0 text-sm font-semibold text-[var(--color-text-primary)] tracking-tight">
             {current?.label ?? 'InCIT'}
@@ -148,7 +154,19 @@ export function Layout({ user, onLogout }: LayoutProps) {
           </div>
         </header>
 
-        <div className="p-6">
+        <nav className="sticky top-14 z-20 flex gap-1 overflow-x-auto border-b border-[var(--color-border)] bg-[var(--color-surface-1)] px-2 py-1.5 md:hidden">
+          {navItems.map(item => (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              className={({ isActive }) => `shrink-0 rounded-md px-2.5 py-1.5 text-xs ${isActive ? 'bg-[var(--color-accent-dim)] text-[var(--color-accent-hover)]' : 'text-[var(--color-text-secondary)]'}`}
+            >
+              {item.icon} {item.label}
+            </NavLink>
+          ))}
+        </nav>
+
+        <div className="p-4 sm:p-6">
           <Outlet />
         </div>
       </main>

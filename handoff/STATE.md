@@ -3,7 +3,7 @@
 Keep this file short. Replace old text instead of adding to it.
 
 ## Current step
-**Step 10** (not started). See `handoff/PLAN.md`.
+**Step 11** (not started). See `handoff/PLAN.md`.
 
 ## IN PROGRESS
 (nothing. Before each change, write one line here: what and which files. Clear it when done.)
@@ -32,6 +32,7 @@ Keep this file short. Replace old text instead of adding to it.
 - Corrected the chat design at the owner's request: removed phrase-by-phrase hardcoded conversation replies. General chat now goes to Gemini, and without a key Basic mode gives one honest limitation message while deterministic booking support remains available. All 69 tests and the frontend build pass.
 - Repaired Gemini API integration and booking persistence: the API key travels in a header, model HTTP failures log safe details and retry Flash-Lite, and approved chat bookings reserve their slot and render as timetable booking entries. All 72 tests and the frontend build pass.
 - Completed Step 9b faculty assistant and explanations: a strict Gemini change draft goes to the solver, then the deterministic validity gate, and finally the existing Admin approval gate. Class and booking “why” answers are built from reason codes and fall back to those codes when Gemini is unavailable. All 75 tests and the frontend build pass.
+- Completed Step 10 role-aware frontend: the four roles see focused navigation and dashboard actions, timetable filters cover room/faculty/group views, Admin controls are not shown to read-only roles, and narrow screens use horizontal navigation plus a scrollable timetable with a fixed period label. Frontend build passes.
 
 ## Decided by the owner: follow the PS
 - The problem statement decides every product question. Do not ask the owner to choose features. If the PS is silent, pick the simplest option that satisfies it and note it under "Decisions made".
@@ -73,6 +74,7 @@ Keep this file short. Replace old text instead of adding to it.
 - Step 8 keeps manual booking checks stateless like the existing NL booking checker; it records an audit event but does not silently add an unapproved booking to the published schedule.
 - Step 9a uses Gemini only to fill a draft. The app ignores model-supplied priority, validates its JSON locally, and keeps the existing deterministic placement checks as the only validity decision.
 - Step 9b freezes other class times while the solver finds a compatible room for the requested class; its result is checked against the live timetable before a pending proposal is recorded.
+- Step 10 keeps the API as the authority for permissions; hiding an unsuitable frontend action improves clarity but does not replace backend role checks.
 - The later user-requested UI steps are tracked in `HANDOFF.md`; do not start them until the owner says "continue".
 
 ## Known issues / watch out

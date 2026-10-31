@@ -13,7 +13,7 @@ const KIND_COLORS: Record<string, string> = {
   booking: 'bg-fuchsia-500/20 border-fuchsia-500/40 text-fuchsia-300',
 };
 
-export function TimetablePage() {
+export function TimetablePage({ role }: { role: string }) {
   const [tt, setTt] = useState<TimetableResponse | null>(null);
   const [rooms, setRooms] = useState<Room[]>([]);
   const [faculty, setFaculty] = useState<Faculty[]>([]);
@@ -23,6 +23,8 @@ export function TimetablePage() {
   const [solveMsg, setSolveMsg] = useState('');
   const [error, setError] = useState('');
   const [timeLimit, setTimeLimit] = useState(120);
+  const canManage = role === 'admin' || role === 'department_coordinator';
+  const canPublish = role === 'admin';
 
   /* Filters */
   const [filterDay, setFilterDay] = useState('');
@@ -102,13 +104,20 @@ export function TimetablePage() {
 
   /* Room utilization */
   const utilization = useMemo(() => {
-    if (!tt || tt.total_assignments === 0) return 0;
-    const totalSlots = rooms.length * DAYS.length * PERIODS.length;
+    if (!tt || tt.assignments.length === 0) return 0;
+    const totalSlots = (filterRoom ? 1 : rooms.length) * DAYS.length * PERIODS.length;
     if (totalSlots === 0) return 0;
     let used = 0;
     for (const a of tt.assignments) used += (a.duration ?? 1);
     return Math.round((used / totalSlots) * 100);
-  }, [tt, rooms]);
+  }, [tt, rooms, filterRoom]);
+
+  const viewLabel = [
+    filterDay && filterDay,
+    filterRoom && `room ${filterRoom}`,
+    filterFaculty && `faculty ${filterFaculty}`,
+    filterGroup && `group ${filterGroup}`,
+  ].filter(Boolean).join(' · ') || 'all rooms, faculty, and groups';
 
   return (
     <div className="space-y-5 animate-fade-up">
@@ -117,11 +126,11 @@ export function TimetablePage() {
         <div className="flex-1">
           <h2 className="text-lg font-bold tracking-tight">Timetable Management</h2>
           <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
-            {tt ? `${tt.total_assignments} sessions • v${tt.version} • ${tt.status}` : 'No timetable generated'}
+            {tt ? `${tt.assignments.length} visible sessions • v${tt.version} • ${tt.status}` : 'No timetable generated'}
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        {canManage ? <div className="flex flex-wrap items-center gap-2">
           {/* Time limit */}
           <div className="flex items-center gap-1.5 text-xs">
             <label className="text-[var(--color-text-muted)]">Limit:</label>
@@ -139,13 +148,13 @@ export function TimetablePage() {
           <Button onClick={runSolver} loading={solving} variant="primary">
             {solving ? 'Solving…' : '▶ Run Solver'}
           </Button>
-          <Button onClick={publish} variant="secondary" disabled={tt?.status !== 'draft'}>
+          <Button onClick={publish} variant="secondary" disabled={!canPublish || tt?.status !== 'draft'}>
             Publish
           </Button>
-          <Button onClick={archive} variant="ghost" disabled={!tt || (tt.status !== 'draft' && tt.status !== 'published')}>
+          <Button onClick={archive} variant="ghost" disabled={!canPublish || !tt || (tt.status !== 'draft' && tt.status !== 'published')}>
             Archive
           </Button>
-        </div>
+        </div> : <Badge variant="info">Read-only timetable</Badge>}
       </div>
 
       {solveMsg && (
@@ -192,11 +201,13 @@ export function TimetablePage() {
         )}
       </div>
 
+      <p className="text-xs text-[var(--color-text-muted)]">Viewing: <span className="text-[var(--color-text-secondary)]">{viewLabel}</span></p>
+
       {/* Room utilization bar */}
-      {tt && tt.total_assignments > 0 && (
+      {tt && tt.assignments.length > 0 && (
         <Card className="!p-3">
           <div className="flex items-center justify-between mb-1">
-            <span className="text-xs text-[var(--color-text-muted)]">Room Utilization</span>
+            <span className="text-xs text-[var(--color-text-muted)]">{filterRoom ? `Room ${filterRoom} utilisation` : 'Room utilisation'}</span>
             <span className="text-xs font-mono text-[var(--color-text-secondary)]">{utilization}%</span>
           </div>
           <div className="w-full bg-[var(--color-surface-3)] rounded-full h-2">
@@ -217,15 +228,15 @@ export function TimetablePage() {
       {/* Timetable Grid */}
       {loading ? (
         <div className="flex items-center justify-center h-48"><Spinner size={28} /></div>
-      ) : !tt || tt.total_assignments === 0 ? (
+      ) : !tt || tt.assignments.length === 0 ? (
         <EmptyState
           icon="▦"
-          title="No timetable generated yet"
-          sub="Click 'Run Solver' to generate an optimal schedule for all 189 sessions."
+          title={tt ? 'No sessions match these filters' : 'No timetable generated yet'}
+          sub={tt ? 'Clear a filter or choose another group, faculty, room, or day.' : 'A coordinator or Admin can generate the timetable.'}
         />
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full border-collapse text-xs">
+          <table className="min-w-[760px] w-full border-collapse text-xs">
             <thead>
               <tr>
                 <th className="p-2 text-left text-[var(--color-text-muted)] font-medium border-b border-[var(--color-border)] w-20">Period</th>
@@ -239,7 +250,7 @@ export function TimetablePage() {
             <tbody>
               {PERIODS.map(p => (
                 <tr key={p}>
-                  <td className="p-2 text-[var(--color-text-muted)] font-mono border-b border-[var(--color-border-subtle)] align-top">
+                  <td className="sticky left-0 z-10 bg-[var(--color-surface-1)] p-2 text-[var(--color-text-muted)] font-mono border-b border-[var(--color-border-subtle)] align-top">
                     P{p}
                   </td>
                   {DAYS.map(d => {
@@ -272,7 +283,7 @@ export function TimetablePage() {
       )}
 
       {/* Legend */}
-      {tt && tt.total_assignments > 0 && (
+      {tt && tt.assignments.length > 0 && (
         <div className="flex flex-wrap gap-3 text-xs text-[var(--color-text-muted)]">
           {Object.entries(KIND_COLORS).map(([kind, cls]) => (
             <div key={kind} className="flex items-center gap-1.5">

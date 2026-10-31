@@ -1,9 +1,17 @@
 import { useState, useEffect } from 'react';
 import { api } from '../api';
+import type { DemoUser } from '../api';
 import type { DashboardStats } from '../types';
 import { StatCard, Card, Button, Badge, Spinner } from '../components/ui';
 
-export function DashboardPage() {
+const ROLE_COPY: Record<string, { title: string; detail: string; action: string; href: string }> = {
+  admin: { title: 'Admin workspace', detail: 'Review pending timetable proposals and keep the published schedule healthy.', action: 'Review change approvals', href: '/disruption' },
+  department_coordinator: { title: 'Coordinator workspace', detail: 'Generate timetables, watch conflicts, and submit changes for Admin approval.', action: 'Open timetable tools', href: '/timetable' },
+  faculty: { title: 'Faculty workspace', detail: 'Find your classes, check rooms, and prepare a session-change request.', action: 'Find a class or request change', href: '/timetable' },
+  club_representative: { title: 'Club workspace', detail: 'Find suitable rooms and submit event bookings that the rules can check.', action: 'Start a room booking', href: '/booking' },
+};
+
+export function DashboardPage({ user }: { user: DemoUser }) {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -40,6 +48,7 @@ export function DashboardPage() {
     archived: 'info',
   } as const;
   const sc = statusColor[stats.timetable_status as keyof typeof statusColor] ?? 'info';
+  const roleCopy = ROLE_COPY[user.role] ?? ROLE_COPY.faculty;
 
   return (
     <div className="space-y-6 animate-fade-up">
@@ -135,6 +144,16 @@ export function DashboardPage() {
         </Card>
       </div>
 
+      <Card>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="flex-1">
+            <h3 className="text-sm font-semibold text-[var(--color-text-secondary)]">{roleCopy.title}</h3>
+            <p className="mt-1 text-sm text-[var(--color-text-muted)]">{roleCopy.detail}</p>
+          </div>
+          <Button onClick={() => { window.location.href = roleCopy.href; }} variant="secondary">{roleCopy.action}</Button>
+        </div>
+      </Card>
+
       {/* Quick Actions */}
       <Card>
         <h3 className="text-sm font-semibold mb-4 text-[var(--color-text-secondary)]">Quick Actions</h3>
@@ -148,9 +167,7 @@ export function DashboardPage() {
           <Button onClick={() => window.location.href = '/spectra'} variant="secondary">
             Spectra Week
           </Button>
-          <Button onClick={() => window.location.href = '/disruption'} variant="secondary">
-            Disruptions
-          </Button>
+          {user.role !== 'faculty' && <Button onClick={() => window.location.href = '/disruption'} variant="secondary">Disruptions & approvals</Button>}
         </div>
       </Card>
     </div>

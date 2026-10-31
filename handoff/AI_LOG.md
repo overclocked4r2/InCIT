@@ -18,3 +18,4 @@
 - Codex, 2026-11-01, User chat correction: removed phrase-by-phrase fallback chat replies and routed all non-booking conversation to Gemini; verified 69 tests and the frontend build.
 - Codex, 2026-11-01, User booking persistence: repaired safe Gemini HTTP handling and made approved chat bookings reserve and render in the timetable; verified 72 tests and the frontend build.
 - Codex, 2026-11-01, Step 9b: added strict faculty-change drafting, solver and validity-gate proposals, code-derived class/booking explanations with an AI-phrasing fallback, UI controls, and tests; verified 75 tests and the frontend build.
+- Codex, 2026-11-01, Step 10: made dashboard actions and navigation role-aware, improved filtered room utilisation and timetable empty states, and added a phone-width navigation and timetable layout; verified the frontend build.
