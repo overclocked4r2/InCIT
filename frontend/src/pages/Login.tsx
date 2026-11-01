@@ -120,7 +120,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
             <div className="login-divider"><span />DEMO ACCESS<span /></div>
             <p className="login-demo-note">This workspace uses demo staff accounts. Your role determines which actions are available.</p>
           </div>
-          <div className="login-access-footer"><span>INSTITUTIONAL SCHEDULER</span><span>DEMO ENVIRONMENT</span></div>
+          <div className="login-access-footer"><span>INSTITUTIONAL SCHEDULER</span><span>ROLE-BASED ACCESS</span></div>
         </section>
       </div>
     </main>

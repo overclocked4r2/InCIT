@@ -108,6 +108,17 @@ has not been pushed or redeployed. The final video/submission checklist remains.
 - The computer-use browser runtime failed to initialize during visual QA, so
   the new picker has not been interactively checked in this turn. Its layout is
   full-width on narrow screens and the dropdown width is viewport-capped.
+- Follow-up polish: replaced the redundant login footer “DEMO ENVIRONMENT” with
+  “ROLE-BASED ACCESS”; styled Soft Penalty with a status badge to match Hard
+  Violations. Frontend production build and `git diff --check` pass. Keep the
+  visible demo-account disclosure; the app is a public demo, not yet a
+  production campus service (in-memory state, shared seeded accounts, no
+  institutional SSO/user administration).
+- README audit: replaced the clone placeholder with the repository URL, corrected
+  Vite 8's Node requirement, added native Render build/start/health settings,
+  documented the public demo and shared-account limitation, and corrected the
+  disruption export claim from 185 moves to the verified 13. `npm ci` and an
+  explicit PowerShell `STARTER_PACK` example are documented.
 
 ## Resume here
 

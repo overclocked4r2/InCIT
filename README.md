@@ -44,13 +44,13 @@ flowchart LR
 ### You need
 
 - Python 3.11 or newer
-- Node.js 18 or newer with npm
+- Node.js 20.19 or newer, or 22.12 or newer, with npm (required by Vite 8)
 - The organiser StarterPack folder if you want to run the official validator
 
 ### 1. Get the code and install Python packages
 
 ```powershell
-git clone <YOUR_REPOSITORY_URL>
+git clone https://github.com/overclocked4r2/InCIT.git
 cd InCIT
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
@@ -67,7 +67,7 @@ source .venv/bin/activate
 
 ```powershell
 cd frontend
-npm install
+npm ci
 cd ..
 ```
 
@@ -105,12 +105,34 @@ cd ..
 
 ## Demo accounts
 
+These shared accounts are seeded for the public demo. They demonstrate role-based
+permissions; they are not individual staff accounts and must not be used for a
+real institution.
+
 | Role | Username | Password | Main use |
 | --- | --- | --- | --- |
 | Admin | `admin@incit.demo` | `admin123` | Approve timetable proposals, reset demo data, and request institute events |
 | Department coordinator | `coordinator@incit.demo` | `coord123` | Generate timetables, submit changes, and request department events |
 | Faculty | `faculty@incit.demo` | `faculty123` | Read timetables, request class changes, and request guest lectures |
 | Club representative | `club@incit.demo` | `club123` | Submit club venue requests |
+
+## Public demo and Render deployment
+
+The current public demo is [incit.onrender.com](https://incit.onrender.com).
+The Render service builds the frontend and serves it with the FastAPI backend.
+For a native Render service, use the repository root as the working directory
+and configure:
+
+```text
+Build command: pip install -r requirements.txt && cd frontend && npm ci && npm run build
+Start command: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+Health check path: /health
+```
+
+`GEMINI_API_KEY` is optional; add it through the host's environment settings if
+AI-assisted draft parsing and explanation phrasing are needed. Never commit a
+real key. This configuration deploys the demo; it does not add persistent
+storage or production identity management.
 
 ## A quick demo path
 
@@ -121,22 +143,25 @@ cd ..
 
 ## Validate the exported schedules
 
-Set `STARTER_PACK` to the path of the organiser's StarterPack folder, then run these commands from the InCIT repository:
+Set `STARTER_PACK` to the path of the organiser's StarterPack folder, then run these commands from the InCIT repository. In PowerShell, for example:
 
 ```powershell
+$env:STARTER_PACK = "C:\path\to\CrunchWeek_StarterPack"
 python "$env:STARTER_PACK/validator.py" --data data/cit_public.json --schedule exports/schedule.json
 python "$env:STARTER_PACK/validator.py" --data data/cit_public.json --schedule exports/schedule_after.json --disruption "$env:STARTER_PACK/examples/sample_disruption.json" --baseline exports/schedule.json
 ```
 
-The committed baseline export was last checked with 0 hard violations and a soft penalty of 3. The committed disruption export is intentionally an older 185-move example; Step 12 regenerates it through the app before submission.
+The committed baseline export was checked with 0 hard violations and a soft
+penalty of 3. The committed disruption export was regenerated through the app
+and checked with 0 hard violations and 13 sessions moved (7 time changes and 6
+room-only changes).
 
 ## Known limitations
 
-- This is a demo: state is kept in memory and resets when the server restarts.
-- Demo credentials are intentionally simple and are not suitable for a real deployment.
+- This is a public demo: state is kept in memory and resets when the server restarts.
+- Demo credentials are shared and intentionally simple; do not use them for a real deployment.
 - Gemini is optional. It never makes a validity, priority, or approval decision, and the app falls back to deterministic/manual paths if it is down.
-- Public demo: [incit.onrender.com](https://incit.onrender.com). Demo data is in memory and resets when the service restarts.
-- The app is designed around the supplied public dataset, not a production identity or database system.
+- The app is designed around the supplied public dataset, not an institution's production identity or database system. A production rollout needs persistent storage and individually managed accounts or institutional sign-in.
 
 ## AI use and safety
 

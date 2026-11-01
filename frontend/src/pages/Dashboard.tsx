@@ -132,7 +132,9 @@ export function DashboardPage({ user }: { user: DemoUser }) {
             </div>
             <div className="flex items-center justify-between">
               <span className="text-sm text-[var(--color-text-muted)]">Soft Penalty</span>
-              <span className="text-sm font-mono text-[var(--color-text-secondary)]">{stats.soft_penalty}</span>
+              <Badge variant={stats.soft_penalty === 0 ? 'success' : 'warning'}>
+                {stats.soft_penalty}
+              </Badge>
             </div>
             {stats.hard_violations === 0 && stats.scheduled_sessions > 0 && (
               <div className="flex items-center gap-2 p-2 rounded-lg bg-[var(--color-success-dim)]">
