@@ -330,18 +330,12 @@ select option:checked {
 }
 .login-story { display: flex; min-width: 0; flex-direction: column; }
 .login-brand { display: inline-flex; width: fit-content; align-items: center; gap: 11px; color: inherit; text-decoration: none; }
+.brand-mark { display: inline-flex; align-items: center; justify-content: center; flex: none; }
+.brand-mark img { display: block; width: 100%; height: 100%; object-fit: contain; }
+[data-theme='dark'] .brand-mark-light, [data-theme='light'] .brand-mark-dark { display: none; }
 .login-brand-mark {
-  display: grid;
-  width: 38px;
-  height: 38px;
-  place-items: center;
-  border-radius: 12px;
-  background: var(--color-accent);
-  color: var(--color-on-accent);
-  font-size: 15px;
-  font-weight: 800;
-  letter-spacing: -.06em;
-  box-shadow: 0 6px 18px color-mix(in srgb, var(--color-accent) 24%, transparent);
+  width: 50px;
+  height: 42px;
 }
 .login-brand-name { font-size: 13px; font-weight: 750; letter-spacing: .025em; }
 .login-brand-name span { margin-left: 7px; color: var(--color-text-muted); font-size: 9px; font-weight: 650; letter-spacing: .12em; }
@@ -436,7 +430,7 @@ select option:checked {
 @media (max-width: 720px) {
   .login-shell { overflow: auto; }
   .login-layout { display: flex; min-height: 100dvh; flex-direction: column; gap: 25px; padding: 22px 20px 18px; }
-  .login-brand-mark { width: 34px; height: 34px; border-radius: 10px; }
+  .login-brand-mark { width: 40px; height: 36px; }
   .login-brand-name span { font-size: 8px; }
   .login-intro { margin: 0; padding-top: 28px; }
   .login-eyebrow { font-size: 9px; }

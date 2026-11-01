@@ -1,5 +1,14 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 
+export function BrandMark({ className = '' }: { className?: string }) {
+  return (
+    <span className={`brand-mark ${className}`} aria-hidden="true">
+      <img className="brand-mark-dark" src="/brand/incit-mark-dark.png" alt="" />
+      <img className="brand-mark-light" src="/brand/incit-mark-light.png" alt="" />
+    </span>
+  );
+}
+
 function trackCardPointer(event: React.PointerEvent<HTMLDivElement>) {
   if (event.pointerType !== 'mouse' || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   const element = event.currentTarget;

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { api, type DemoUser } from '../api';
+import { BrandMark } from '../components/ui';
 
 type LoginPageProps = {
   onLogin: (token: string, user: DemoUser) => void;
@@ -44,7 +45,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
       <div className="login-layout">
         <section className="login-story" aria-label="About InCIT">
           <div className="login-brand" aria-label="InCIT">
-            <span className="login-brand-mark" aria-hidden="true">In</span>
+            <BrandMark className="login-brand-mark" />
             <span className="login-brand-name">InCIT<span> / CAMPUS OPERATIONS</span></span>
           </div>
 

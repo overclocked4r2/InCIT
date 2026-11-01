@@ -3,6 +3,7 @@ import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { api } from '../api';
 import type { DemoUser } from '../api';
 import { CommandPalette } from './CommandPalette';
+import { BrandMark } from './ui';
 
 interface NavItem {
   to: string;
@@ -168,9 +169,7 @@ export function Layout({ user, onLogout }: LayoutProps) {
         }`}
       >
         <div className={`flex items-center ${sidebarOpen ? 'gap-3 px-4' : 'justify-center px-0'} h-16 border-b border-[var(--color-border)] shrink-0`}>
-          <div className="w-8 h-8 rounded-lg bg-[var(--color-accent)] flex items-center justify-center text-[var(--color-on-accent)] font-bold text-sm shrink-0">
-            In
-          </div>
+          <BrandMark className="h-9 w-10 shrink-0" />
           {sidebarOpen && (
             <div className="animate-fade-in min-w-0">
               <div className="text-sm font-semibold tracking-tight text-[var(--color-text-primary)]">InCIT</div>

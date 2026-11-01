@@ -119,6 +119,10 @@ has not been pushed or redeployed. The final video/submission checklist remains.
   documented the public demo and shared-account limitation, and corrected the
   disruption export claim from 185 moves to the verified 13. `npm ci` and an
   explicit PowerShell `STARTER_PACK` example are documented.
+- Owner-provided InCIT wordmark boards were cropped to the left campus emblem;
+  transparent light- and dark-mode files live in `frontend/public/brand/` and
+  are used in login, sidebar, and theme-aware browser favicon. Production build
+  passes; the existing Three.js chunk-size warning remains.
 
 ## Resume here
 

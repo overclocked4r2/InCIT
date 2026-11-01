@@ -50,6 +50,7 @@ Keep this file short. Replace old text instead of adding to it.
 - Latest verification: backend `pytest -q` **82 passed**; frontend `npm run build` passed; `git diff --check` passed. Build still has the known deferred Three.js chunk warning (743 KB minified / 188 KB gzip). New picker interactive visual QA could not run because computer-use runtime failed to initialize; mobile width is capped in CSS and controls stack at narrow sizes.
 - Latest follow-up: login footer now says “ROLE-BASED ACCESS”; both dashboard validation numbers use status badges. Frontend build and diff check pass. Accurate demo-access disclosure stays visible. Public demo deployment works, but full institutional production readiness would need persistent storage, individually managed accounts/SSO, and production security/operations configuration.
 - README audit fixed the clone URL, Node 18/Vite incompatibility, stale 185-move export claim, missing Render build/start/health settings, and demo-vs-production explanation; added `npm ci` and a PowerShell `STARTER_PACK` example.
+- Cropped the provided leftmost campus crest from both transparent logo boards and added theme-specific marks; login, desktop sidebar, and favicon now use them. Frontend production build passes.
 - Do not claim these latest changes are live: no git push or Render deployment was performed. The current Render URL still serves the previous deployment until this branch is published and Render redeploys.
 
 ## Decided by the owner: follow the PS
