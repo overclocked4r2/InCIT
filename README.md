@@ -1,5 +1,8 @@
 # InCIT
 
+> **Live Application URL:** [https://incit.onrender.com/](https://incit.onrender.com/)  
+> **GitHub Repository:** [https://github.com/overclocked4r2/InCIT](https://github.com/overclocked4r2/InCIT)  
+
 InCIT is a timetable and campus-room scheduling demo for the Zephyr Hackathon / CrunchWeek dataset. It creates a weekly timetable, checks room booking requests, schedules exams, and lets staff propose timetable changes for Admin approval.
 
 The important safety rule is simple: AI can help turn words into a draft, but only InCIT's own code and the organiser validator decide whether a timetable, booking, or change is valid.
